@@ -3959,8 +3959,8 @@ export default function CanvasArea({
         active: true,
         isDrawingPhase: true,
         nodes: [],
-        stiffness: 50,
-        captureRadius: 50,
+        stiffness: 25,
+        captureRadius: 25,
         rigidLinear: isRpd
       };
 
@@ -4601,16 +4601,17 @@ export default function CanvasArea({
 
             const isRigid = activeTool === 'PBM' || activeTool === 'RPD' || vdfState.rigidLinear;
 
-            if (updatedNodes.length >= 2 && origPts && origPts.length > 0) {
+            if (updatedNodes.length >= 1 && origPts && origPts.length > 0) {
+              const capRad = vdfState.captureRadius || vdfState.stiffness || 25;
               if (isRigid) {
-                updatedPoints = calculateRigidLinearDeformedPoints(origPts, updatedNodes);
+                updatedPoints = calculateRigidLinearDeformedPoints(origPts, updatedNodes, capRad);
                 if (origSubs && origSubs.length > 0) {
-                  updatedSubPaths = origSubs.map(sub => calculateRigidLinearDeformedPoints(sub, updatedNodes));
+                  updatedSubPaths = origSubs.map(sub => calculateRigidLinearDeformedPoints(sub, updatedNodes, capRad));
                 }
               } else {
-                updatedPoints = calculateCustomVectorDeformedPoints(origPts, updatedNodes, vdfState.captureRadius || vdfState.stiffness || 50);
+                updatedPoints = calculateCustomVectorDeformedPoints(origPts, updatedNodes, capRad);
                 if (origSubs && origSubs.length > 0) {
-                  updatedSubPaths = origSubs.map(sub => calculateCustomVectorDeformedPoints(sub, updatedNodes, vdfState.captureRadius || vdfState.stiffness || 50));
+                  updatedSubPaths = origSubs.map(sub => calculateCustomVectorDeformedPoints(sub, updatedNodes, capRad));
                 }
               }
             }
