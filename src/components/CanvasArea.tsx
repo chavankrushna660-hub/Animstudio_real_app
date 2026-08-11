@@ -2380,85 +2380,91 @@ export default function CanvasArea({
 
   // Perform hit testing on any drawing path (including subPaths of merged drawings)
   const performHitTest = (coords: Point): VectorObject | null => {
-    const activeObjects = Object.values(objects).filter(o => {
-      if (o.isHidden) return false;
-      const effLayerId = o.layerId || (layers && layers[0] ? layers[0].id : 'layer_1');
-      const layer = layers ? layers.find(l => l.id === effLayerId) : null;
-      if (layer && (layer.visible === false || (layer as any).isHidden)) return false;
-      return effLayerId === activeLayerId;
-    });
-    // Prioritize smaller objects or front objects (by rendering layer / creation time)
-    const reversed = [...activeObjects].reverse();
-    for (const rawObj of reversed) {
-      const obj = resolve360Object(rawObj, objects);
+    // Check active layer first, then fallback to any visible unlocked layer
+    const getVisibleObjects = (onlyActiveLayer: boolean) => {
+      return Object.values(objects).filter(o => {
+        if (o.isHidden) return false;
+        const effLayerId = o.layerId || (layers && layers[0] ? layers[0].id : 'layer_1');
+        const layer = layers ? layers.find(l => l.id === effLayerId) : null;
+        if (layer && (layer.visible === false || (layer as any).isHidden || layer.locked)) return false;
+        if (onlyActiveLayer) return effLayerId === activeLayerId;
+        return true;
+      });
+    };
 
-      if (obj.type === '3d' && obj.vertices3D && obj.faces3D && obj.transform3D) {
-        // Project all vertices
-        const transformed3D = transform3DVertices(obj.vertices3D, obj.transform3D!.x, obj.transform3D!.y, obj.transform3D!.z, obj.transform3D!.rx, obj.transform3D!.ry, obj.transform3D!.rz, obj.transform3D!.sx, obj.transform3D!.sy, obj.transform3D!.sz);
-        const projected = transformed3D.map(v => {
-          const proj = project3DVertex(v, 400);
-          return localToWorld(proj, obj.transform, obj.pivots[0] || { localX: 0, localY: 0 });
-        });
-        
-        // Check all faces
-        for (const face of obj.faces3D) {
-          const poly = face.indices.map(idx => projected[idx]);
-          if (isPointInPolygon(coords, poly)) {
-            return rawObj; // Return the container/original object
-          }
-        }
-        continue;
-      }
+    const testList = (list: VectorObject[]) => {
+      const reversed = [...list].reverse();
+      for (const rawObj of reversed) {
+        const obj = resolve360Object(rawObj, objects);
 
-      const pivot = obj.pivots[0] || { localX: 0, localY: 0 };
-      
-      // Hit test main points
-      const worldPoints = obj.points.map(p => localToWorld(p, obj.transform, pivot));
-      if (obj.fillColor && obj.fillColor !== 'transparent') {
-        // Split by gaps to perform accurate polygon hit testing on each individual stroke segment
-        const subPolys: Point[][] = [];
-        let currentPoly: Point[] = [];
-        for (let i = 0; i < worldPoints.length; i++) {
-          const pt = worldPoints[i];
-          const origPt = obj.points[i];
-          if (origPt?.gap && currentPoly.length > 0) {
-            subPolys.push(currentPoly);
-            currentPoly = [];
-          }
-          currentPoly.push(pt);
-        }
-        if (currentPoly.length > 0) {
-          subPolys.push(currentPoly);
-        }
-
-        for (const poly of subPolys) {
-          if (poly.length >= 3 && isPointInPolygon(coords, poly)) {
-            return rawObj; // Return the container/original object
-          }
-        }
-      }
-      const dist = pointToPolylineDistance(coords, worldPoints);
-      if (dist < 18) {
-        return rawObj; // Return the container/original object
-      }
-
-      // Hit test sub-paths of merged drawings
-      if (obj.subPaths && obj.subPaths.length > 0) {
-        for (const sub of obj.subPaths) {
-          const worldSubPoints = sub.map(p => localToWorld(p, obj.transform, pivot));
-          if (obj.fillColor && obj.fillColor !== 'transparent') {
-            if (isPointInPolygon(coords, worldSubPoints)) {
-              return rawObj; // Return the container/original object
+        if (obj.type === '3d' && obj.vertices3D && obj.faces3D && obj.transform3D) {
+          const transformed3D = transform3DVertices(obj.vertices3D, obj.transform3D!.x, obj.transform3D!.y, obj.transform3D!.z, obj.transform3D!.rx, obj.transform3D!.ry, obj.transform3D!.rz, obj.transform3D!.sx, obj.transform3D!.sy, obj.transform3D!.sz);
+          const projected = transformed3D.map(v => {
+            const proj = project3DVertex(v, 400);
+            return localToWorld(proj, obj.transform, obj.pivots[0] || { localX: 0, localY: 0 });
+          });
+          
+          for (const face of obj.faces3D) {
+            const poly = face.indices.map(idx => projected[idx]);
+            if (isPointInPolygon(coords, poly)) {
+              return rawObj;
             }
           }
-          const subDist = pointToPolylineDistance(coords, worldSubPoints);
-          if (subDist < 18) {
-            return rawObj; // Return the container/original object
+          continue;
+        }
+
+        const pivot = obj.pivots[0] || { localX: 0, localY: 0 };
+        const worldPoints = obj.points.map(p => localToWorld(p, obj.transform, pivot));
+        if (obj.fillColor && obj.fillColor !== 'transparent') {
+          const subPolys: Point[][] = [];
+          let currentPoly: Point[] = [];
+          for (let i = 0; i < worldPoints.length; i++) {
+            const pt = worldPoints[i];
+            const origPt = obj.points[i];
+            if (origPt?.gap && currentPoly.length > 0) {
+              subPolys.push(currentPoly);
+              currentPoly = [];
+            }
+            currentPoly.push(pt);
+          }
+          if (currentPoly.length > 0) {
+            subPolys.push(currentPoly);
+          }
+
+          for (const poly of subPolys) {
+            if (poly.length >= 3 && isPointInPolygon(coords, poly)) {
+              return rawObj;
+            }
+          }
+        }
+        const dist = pointToPolylineDistance(coords, worldPoints);
+        if (dist < 18) {
+          return rawObj;
+        }
+
+        if (obj.subPaths && obj.subPaths.length > 0) {
+          for (const sub of obj.subPaths) {
+            const worldSubPoints = sub.map(p => localToWorld(p, obj.transform, pivot));
+            if (obj.fillColor && obj.fillColor !== 'transparent') {
+              if (isPointInPolygon(coords, worldSubPoints)) {
+                return rawObj;
+              }
+            }
+            const subDist = pointToPolylineDistance(coords, worldSubPoints);
+            if (subDist < 18) {
+              return rawObj;
+            }
           }
         }
       }
-    }
-    return null;
+      return null;
+    };
+
+    const activeHit = testList(getVisibleObjects(true));
+    if (activeHit) return activeHit;
+
+    // Fallback: check all visible non-locked layers if active layer produced no hit
+    return testList(getVisibleObjects(false));
   };
 
   // Enforce locked bone rigid distance constraints!
@@ -5858,8 +5864,11 @@ export default function CanvasArea({
       return;
     }
 
-    if (isDrawing && activeTool === 'BRS' && strokePointsRef.current.length > 1) {
-      const pts = [...strokePointsRef.current];
+    if (isDrawing && activeTool === 'BRS' && strokePointsRef.current.length > 0) {
+      let pts = [...strokePointsRef.current];
+      if (pts.length === 1) {
+        pts.push({ x: pts[0].x + 0.5, y: pts[0].y + 0.5 });
+      }
       
       if (continuousDrawActive) {
         if (activeContinuousDrawingId && objects[activeContinuousDrawingId]) {
@@ -5960,47 +5969,54 @@ export default function CanvasArea({
     }
 
     if (isDrawing && activeTool === 'SHP') {
-      const minX = Math.min(dragStartPoint.x, currentCursorPos.x);
-      const maxX = Math.max(dragStartPoint.x, currentCursorPos.x);
-      const minY = Math.min(dragStartPoint.y, currentCursorPos.y);
-      const maxY = Math.max(dragStartPoint.y, currentCursorPos.y);
-      const w = maxX - minX;
-      const h = maxY - minY;
+      let minX = Math.min(dragStartPoint.x, currentCursorPos.x);
+      let maxX = Math.max(dragStartPoint.x, currentCursorPos.x);
+      let minY = Math.min(dragStartPoint.y, currentCursorPos.y);
+      let maxY = Math.max(dragStartPoint.y, currentCursorPos.y);
+      let w = maxX - minX;
+      let h = maxY - minY;
 
-      if (w > 5 && h > 5) {
-        const newId = `obj_${Date.now()}`;
-        const name = `Rectangle_${Object.keys(objects).length + 1}`;
-        const points = [
-          { x: minX, y: minY },
-          { x: maxX, y: minY },
-          { x: maxX, y: maxY },
-          { x: minX, y: maxY },
-          { x: minX, y: minY }
-        ];
-
-        const newObj: VectorObject = {
-          id: newId,
-          name,
-          type: 'shape',
-          shapeType: 'rectangle',
-          points,
-          strokeColor: '#1B5E20',
-          strokeWidth: 3,
-          fillColor: '#FFE082',
-          opacity: 1,
-          transform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
-          pivots: [{ id: `pvt_${Date.now()}`, name: 'Pivot_1', localX: minX + w/2, localY: minY + h/2, locked: false }],
-          parentId: null,
-          childrenIds: [],
-          layerId: activeLayerId,
-          isLocked: false,
-          isHidden: false,
-        };
-
-        setObjects(prev => ({ ...prev, [newId]: newObj }));
-        setSelectedObjectId(newId);
-        historyPush();
+      if (w <= 5 || h <= 5) {
+        w = 120;
+        h = 80;
+        minX = dragStartPoint.x - w / 2;
+        maxX = dragStartPoint.x + w / 2;
+        minY = dragStartPoint.y - h / 2;
+        maxY = dragStartPoint.y + h / 2;
       }
+
+      const newId = `obj_${Date.now()}`;
+      const name = `Rectangle_${Object.keys(objects).length + 1}`;
+      const points = [
+        { x: minX, y: minY },
+        { x: maxX, y: minY },
+        { x: maxX, y: maxY },
+        { x: minX, y: maxY },
+        { x: minX, y: minY }
+      ];
+
+      const newObj: VectorObject = {
+        id: newId,
+        name,
+        type: 'shape',
+        shapeType: 'rectangle',
+        points,
+        strokeColor: '#1B5E20',
+        strokeWidth: 3,
+        fillColor: '#FFE082',
+        opacity: 1,
+        transform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
+        pivots: [{ id: `pvt_${Date.now()}`, name: 'Pivot_1', localX: minX + w/2, localY: minY + h/2, locked: false }],
+        parentId: null,
+        childrenIds: [],
+        layerId: activeLayerId,
+        isLocked: false,
+        isHidden: false,
+      };
+
+      setObjects(prev => ({ ...prev, [newId]: newObj }));
+      setSelectedObjectId(newId);
+      historyPush();
     }
 
     if (dragMode === 'pivot' && activeTool === 'KNF' && selectedObjectId && knifePath.length > 1) {

@@ -590,6 +590,53 @@ export default function App() {
   const [strokeMoveRadius, setStrokeMoveRadius] = useState<number>(50);
   const [strokeMoveScope, setStrokeMoveScope] = useState<'touched' | 'entireSubpath'>('touched');
 
+  // Trigger active tool HUD shortcut hint whenever activeTool changes
+  useEffect(() => {
+    const toolHints: { [key: string]: string } = {
+      SEL: 'Selection Tool: Click drawing to select, drag to move / scale / rotate',
+      BRS: 'Brush Tool: Click & drag on canvas to draw strokes',
+      SHP: 'Shape Tool: Click or drag on canvas to create shape',
+      PEN: 'Vector Pen: Click points on canvas to create bezier curve path',
+      ERS: 'Eraser Tool: Click or drag across strokes to erase',
+      FIL: 'Fill Bucket: Click inside a shape or stroke to fill color',
+      PVT: 'Pivot Tool: Click on selected object to add transform pivot point',
+      KNF: 'Knife Tool: Drag across drawing to cut into parts',
+      PIN: 'Puppet Pin: Click on drawing to add deform pins',
+      LSO: 'Lasso Tool: Draw loop around area to select or fill',
+      FSL: 'Free Selection: Draw loop around area',
+      VEX: 'Vector Isolator: Select part to isolate as a separate layer',
+      PSE: 'Pose Studio: Animate mouth, eye blink, pupil & 3D pose',
+      '360': '360° Studio: Pseudo-3D multi-angle rotation builder',
+      WSC: '3D Wire Sculpt: Convert 2D strokes to 3D mesh wireframe',
+      MSH: 'Mesh Wrap: Drag mesh points on drawing to deform',
+      SPL: 'Spline Reshape: Adjust spline handles to curve stroke',
+      MCL: 'Smart Mesh Color: Click mesh cells to paint colors',
+      SWP: 'Smart Pin Warp: Click on drawing to add warp pins',
+      CAG: 'Cage Deform: Drag cage handles to warp shape',
+      LQB: 'Liquify Brush: Click & drag on drawing to push, bulge or twist',
+      SPD: 'Direct Stroke Pull: Drag stroke lines directly to pull',
+      SPT: 'Stroke Move: Touch & drag stroke to shift position',
+      S3D: '3D Extruder: Convert 2D stroke into 3D volumetric model',
+      CON: 'Constraints: Connect objects with joint constraints',
+      MOT: 'Motion Path: Attach objects to motion paths',
+      CPT: 'Curve Path: Warp drawing along spine curve lines',
+      VDF: 'Vector Deformer: Place vector nodes and drag to deform',
+      VPR: 'Vector Pen Reshape: Place pen points on stroke to curve lines',
+      PBM: 'Points Movement: Place joint points and drag rigid sections',
+      RPD: 'Rigid Point Deform: Drag rigid points in straight lines',
+      CRV: 'Curve Line Deformer: Bend and attach flex curve overlay',
+      EYE: 'Eyedropper: Click on canvas to sample color',
+      ZOM: 'Zoom & Pan: Pinch to zoom, drag to pan canvas viewport',
+      BON: 'Bone Tool: Drag between pivot joints to link skeletal bones',
+    };
+    const hint = toolHints[activeTool] || `Active Tool: ${activeTool}`;
+    setShortcutHint(hint);
+    const timer = setTimeout(() => {
+      setShortcutHint(null);
+    }, 2800);
+    return () => clearTimeout(timer);
+  }, [activeTool]);
+
   // Realism Maker Settings
   const [realismSettings, setRealismSettings] = useState<RealismSettings>({
     autoTaperEnabled: false,
