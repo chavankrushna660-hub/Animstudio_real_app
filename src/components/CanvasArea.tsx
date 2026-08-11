@@ -2467,6 +2467,63 @@ export default function CanvasArea({
     return testList(getVisibleObjects(false));
   };
 
+  // Get active object or hit object or create default drawing so tools work immediately
+  const getOrPrepareActiveObject = (coords: Point): VectorObject => {
+    if (selectedObjectId && objects[selectedObjectId] && !objects[selectedObjectId].isHidden && !objects[selectedObjectId].isLocked) {
+      return objects[selectedObjectId];
+    }
+    const hit = performHitTest(coords);
+    if (hit) {
+      setSelectedObjectId(hit.id);
+      return hit;
+    }
+    const visibleObjs = Object.values(objects).filter(o => !o.isHidden && !o.isLocked);
+    if (visibleObjs.length > 0) {
+      const lastObj = visibleObjs[visibleObjs.length - 1];
+      setSelectedObjectId(lastObj.id);
+      return lastObj;
+    }
+    // Create default drawing on blank canvas
+    const newId = `obj_drawing_${Date.now()}`;
+    const name = `Drawing_${Object.keys(objects).length + 1}`;
+    const w = 120;
+    const h = 120;
+    const points = [
+      { x: coords.x, y: coords.y - h/2 },
+      { x: coords.x + w/4, y: coords.y - h/6 },
+      { x: coords.x + w/2, y: coords.y },
+      { x: coords.x + w/4, y: coords.y + h/4 },
+      { x: coords.x + w/3, y: coords.y + h/2 },
+      { x: coords.x, y: coords.y + h/3 },
+      { x: coords.x - w/3, y: coords.y + h/2 },
+      { x: coords.x - w/4, y: coords.y + h/4 },
+      { x: coords.x - w/2, y: coords.y },
+      { x: coords.x - w/4, y: coords.y - h/6 },
+      { x: coords.x, y: coords.y - h/2 },
+    ];
+    const newObj: VectorObject = {
+      id: newId,
+      name,
+      type: 'shape',
+      shapeType: 'star',
+      points,
+      strokeColor: '#1E40AF',
+      strokeWidth: 4,
+      fillColor: '#60A5FA',
+      opacity: 1,
+      transform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
+      pivots: [{ id: `pvt_${Date.now()}`, name: 'Pivot_1', localX: coords.x, localY: coords.y, locked: false }],
+      parentId: null,
+      childrenIds: [],
+      layerId: activeLayerId,
+      isLocked: false,
+      isHidden: false,
+    };
+    setObjects(prev => ({ ...prev, [newId]: newObj }));
+    setSelectedObjectId(newId);
+    return newObj;
+  };
+
   // Enforce locked bone rigid distance constraints!
   const enforceBoneConstraints = (updatedObjects: { [id: string]: VectorObject }) => {
     // Bypassed completely to prevent delayed relaxation, elastic lag, or detachment.
@@ -2796,72 +2853,67 @@ export default function CanvasArea({
     }
 
     // 2. Add custom pivot point (PVT tool)
-    if (activeTool === 'PVT' && selectedObjectId) {
-      const obj = objects[selectedObjectId];
-      if (obj) {
-        const local = worldToLocal(coords, obj.transform, obj.pivots[0]);
-        const newPivot: Pivot = {
-          id: `pvt_${Date.now()}`,
-          name: `Pivot_${obj.pivots.length + 1}`,
-          localX: Number(local.x.toFixed(2)),
-          localY: Number(local.y.toFixed(2)),
-          locked: false,
-        };
-        updateObjectProperties(obj.id, { pivots: [newPivot, ...obj.pivots] });
-        historyPush();
-      }
+    if (activeTool === 'PVT') {
+      const obj = getOrPrepareActiveObject(coords);
+      const local = worldToLocal(coords, obj.transform, obj.pivots[0]);
+      const newPivot: Pivot = {
+        id: `pvt_${Date.now()}`,
+        name: `Pivot_${(obj.pivots || []).length + 1}`,
+        localX: Number(local.x.toFixed(2)),
+        localY: Number(local.y.toFixed(2)),
+        locked: false,
+      };
+      updateObjectProperties(obj.id, { pivots: [newPivot, ...(obj.pivots || [])] });
+      historyPush();
       return;
     }
 
     // 3. Add puppet pin (PIN tool)
-    if (activeTool === 'PIN' && selectedObjectId) {
-      const obj = objects[selectedObjectId];
-      if (obj) {
-        // First check if we clicked on an existing pin to drag it!
-        if (obj.pins && obj.pins.length > 0) {
-          let clickedPinIndex = -1;
-          let minPinDist = 14;
-          obj.pins.forEach((pin, idx) => {
-            const curX = pin.currentLocalX !== undefined ? pin.currentLocalX : pin.localX;
-            const curY = pin.currentLocalY !== undefined ? pin.currentLocalY : pin.localY;
-            const worldPin = localToWorld({ x: curX, y: curY }, obj.transform, obj.pivots[0]);
-            const d = distance(coords, worldPin);
-            if (d < minPinDist) {
-              minPinDist = d;
-              clickedPinIndex = idx;
-            }
-          });
-          if (clickedPinIndex !== -1) {
-            setDragMode('puppetPin');
-            setDraggedMeshPointIndex(clickedPinIndex);
-            setDragStartPoint(coords);
-            return;
+    if (activeTool === 'PIN') {
+      const obj = getOrPrepareActiveObject(coords);
+      // First check if we clicked on an existing pin to drag it!
+      if (obj.pins && obj.pins.length > 0) {
+        let clickedPinIndex = -1;
+        let minPinDist = 14;
+        obj.pins.forEach((pin, idx) => {
+          const curX = pin.currentLocalX !== undefined ? pin.currentLocalX : pin.localX;
+          const curY = pin.currentLocalY !== undefined ? pin.currentLocalY : pin.localY;
+          const worldPin = localToWorld({ x: curX, y: curY }, obj.transform, obj.pivots[0]);
+          const d = distance(coords, worldPin);
+          if (d < minPinDist) {
+            minPinDist = d;
+            clickedPinIndex = idx;
           }
+        });
+        if (clickedPinIndex !== -1) {
+          setDragMode('puppetPin');
+          setDraggedMeshPointIndex(clickedPinIndex);
+          setDragStartPoint(coords);
+          return;
         }
-
-        // Otherwise, add a new puppet pin
-        const local = worldToLocal(coords, obj.transform, obj.pivots[0]);
-        const newPin: Pivot = {
-          id: `pin_${Date.now()}`,
-          name: `Pin_${(obj.pins || []).length + 1}`,
-          localX: Number(local.x.toFixed(2)),
-          localY: Number(local.y.toFixed(2)),
-          locked: false,
-          isActive: true,
-        };
-        const currentPins = obj.pins || [];
-        updateObjectProperties(obj.id, { pins: [...currentPins, newPin] });
-        historyPush();
       }
+
+      // Otherwise, add a new puppet pin
+      const local = worldToLocal(coords, obj.transform, obj.pivots[0]);
+      const newPin: Pivot = {
+        id: `pin_${Date.now()}`,
+        name: `Pin_${(obj.pins || []).length + 1}`,
+        localX: Number(local.x.toFixed(2)),
+        localY: Number(local.y.toFixed(2)),
+        locked: false,
+        isActive: true,
+      };
+      const currentPins = obj.pins || [];
+      updateObjectProperties(obj.id, { pins: [...currentPins, newPin] });
+      historyPush();
       return;
     }
 
     // 4. Knife slicing tool logic
     if (activeTool === 'KNF') {
-      if (selectedObjectId) {
-        setKnifePath([coords]);
-        setDragMode('pivot');
-      }
+      getOrPrepareActiveObject(coords);
+      setKnifePath([coords]);
+      setDragMode('pivot');
       return;
     }
 
@@ -3288,344 +3340,362 @@ export default function CanvasArea({
 
     // 9.5. Geometry Deform Mesh Tool logic
     if (activeTool === 'MSH') {
-      if (selectedObjectId && objects[selectedObjectId]) {
-        const obj = objects[selectedObjectId];
+      const obj = getOrPrepareActiveObject(coords);
 
-        // If the object is a 3D model, handle 3D vertex selection
-        if (obj.type === '3d' && obj.vertices3D && obj.transform3D) {
-          const transformed3D = transform3DVertices(obj.vertices3D, obj.transform3D!.x, obj.transform3D!.y, obj.transform3D!.z, obj.transform3D!.rx, obj.transform3D!.ry, obj.transform3D!.rz, obj.transform3D!.sx, obj.transform3D!.sy, obj.transform3D!.sz);
-          const projected = transformed3D.map(v => {
-            const proj = project3DVertex(v, 400);
-            return localToWorld(proj, obj.transform, obj.pivots[0] || { localX: 0, localY: 0 });
-          });
+      // If the object is a 3D model, handle 3D vertex selection
+      if (obj.type === '3d' && obj.vertices3D && obj.transform3D) {
+        const transformed3D = transform3DVertices(obj.vertices3D, obj.transform3D!.x, obj.transform3D!.y, obj.transform3D!.z, obj.transform3D!.rx, obj.transform3D!.ry, obj.transform3D!.rz, obj.transform3D!.sx, obj.transform3D!.sy, obj.transform3D!.sz);
+        const projected = transformed3D.map(v => {
+          const proj = project3DVertex(v, 400);
+          return localToWorld(proj, obj.transform, obj.pivots[0] || { localX: 0, localY: 0 });
+        });
 
-          let clickedVtxIdx = -1;
-          let minDist = 20; // pixels
-          projected.forEach((pt, idx) => {
-            const d = distance(coords, pt);
-            if (d < minDist) {
-              minDist = d;
-              clickedVtxIdx = idx;
-            }
-          });
-
-          if (clickedVtxIdx !== -1) {
-            setDragMode('meshPoint');
-            setDraggedMeshPointIndex(clickedVtxIdx);
-            setDragStartPoint(coords);
-            if (setSelectedDeformPointIndex && setSelectedDeformPointType && setOriginalDeformPointCoords && setDeformPointTransform) {
-              setSelectedDeformPointIndex(clickedVtxIdx);
-              setSelectedDeformPointType('3d');
-              setOriginalDeformPointCoords({
-                x: obj.vertices3D[clickedVtxIdx].x,
-                y: obj.vertices3D[clickedVtxIdx].y,
-                z: obj.vertices3D[clickedVtxIdx].z
-              });
-              setDeformPointTransform({
-                x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, skewX: 0, skewY: 0, rotateX: 0, rotateY: 0, perspective: 0, cameraAngleX: 0, cameraAngleY: 0
-              });
-            }
-            return;
+        let clickedVtxIdx = -1;
+        let minDist = 20; // pixels
+        projected.forEach((pt, idx) => {
+          const d = distance(coords, pt);
+          if (d < minDist) {
+            minDist = d;
+            clickedVtxIdx = idx;
           }
-        }
-        
-        // 1. If mesh wrap grid is active, prioritize dragging mesh grid control points or lattice points!
-        else if (obj.meshState && obj.meshState.active) {
-          // Check lattice points first if in lattice mode
-          if (obj.meshState.editMode === 'lattice' && obj.meshState.latticePoints && obj.meshState.latticePoints.length > 0) {
-            let clickedLptIdx = -1;
-            let minLptDist = 14;
-            obj.meshState.latticePoints.forEach((lpt: any, idx: number) => {
-              const worldPt = localToWorld({ x: lpt.x, y: lpt.y }, obj.transform, obj.pivots[0]);
-              const d = distance(coords, worldPt);
-              if (d < minLptDist) {
-                minLptDist = d;
-                clickedLptIdx = idx;
-              }
+        });
+
+        if (clickedVtxIdx !== -1) {
+          setDragMode('meshPoint');
+          setDraggedMeshPointIndex(clickedVtxIdx);
+          setDragStartPoint(coords);
+          if (setSelectedDeformPointIndex && setSelectedDeformPointType && setOriginalDeformPointCoords && setDeformPointTransform) {
+            setSelectedDeformPointIndex(clickedVtxIdx);
+            setSelectedDeformPointType('3d');
+            setOriginalDeformPointCoords({
+              x: obj.vertices3D[clickedVtxIdx].x,
+              y: obj.vertices3D[clickedVtxIdx].y,
+              z: obj.vertices3D[clickedVtxIdx].z
             });
-            if (clickedLptIdx !== -1) {
-              setDragMode('latticePoint');
-              setDraggedMeshPointIndex(clickedLptIdx);
-              setDragStartPoint(coords);
-              return;
-            }
-          }
-
-          let clickedMptIndex = -1;
-          let minMptDist = 16; // Pixels threshold in world space
-          if (obj.meshState && obj.meshState.points) {
-            obj.meshState.points.forEach((mpt, idx) => {
-              const worldPt = localToWorld({ x: mpt.currentX, y: mpt.currentY }, obj.transform, obj.pivots[0]);
-              const d = distance(coords, worldPt);
-              if (d < minMptDist) {
-                minMptDist = d;
-                clickedMptIndex = idx;
-              }
+            setDeformPointTransform({
+              x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, skewX: 0, skewY: 0, rotateX: 0, rotateY: 0, perspective: 0, cameraAngleX: 0, cameraAngleY: 0
             });
           }
-
-          // Check standard drawing outline points
-          let clickedVtxIdx = -1;
-          let minVtxDist = 16;
-          const ptsToUse = (obj.points && obj.points.length > 0) ? obj.points : (obj.subPaths ? obj.subPaths.flat() : []);
-          ptsToUse.forEach((pt, idx) => {
-            const worldPt = localToWorld(pt, obj.transform, obj.pivots[0]);
-            const d = distance(coords, worldPt);
-            if (d < minVtxDist) {
-              minVtxDist = d;
-              clickedVtxIdx = idx;
-            }
-          });
-
-          const isExtrudeMode = obj.meshState?.pointExtrudeMode || canvasExtrudeMode;
-
-          if (isExtrudeMode && (clickedMptIndex !== -1 || clickedVtxIdx !== -1)) {
-            // ⚡ EXTRUDE NEW POINT / BRANCH MODE ACTIVE!
-            const pivot = obj.pivots[0] || { localX: 0, localY: 0 };
-            const cursorLocal = worldToLocal(coords, obj.transform, pivot);
-            
-            let anchorLocal: Point;
-            if (clickedMptIndex !== -1 && obj.meshState && obj.meshState.points[clickedMptIndex]) {
-              const mpt = obj.meshState.points[clickedMptIndex];
-              anchorLocal = { x: mpt.currentX, y: mpt.currentY };
-            } else if (clickedVtxIdx !== -1 && ptsToUse[clickedVtxIdx]) {
-              anchorLocal = { x: ptsToUse[clickedVtxIdx].x, y: ptsToUse[clickedVtxIdx].y };
-            } else {
-              anchorLocal = { x: cursorLocal.x, y: cursorLocal.y };
-            }
-
-            // Create new branch stroke connecting anchorLocal -> cursorLocal
-            const newBranch = [
-              { x: anchorLocal.x, y: anchorLocal.y },
-              { x: cursorLocal.x, y: cursorLocal.y }
-            ];
-
-            const existingSubs = obj.subPaths && obj.subPaths.length > 0
-              ? [...obj.subPaths]
-              : (obj.points && obj.points.length > 0 ? [[...obj.points]] : []);
-
-            const updatedSubPaths = [...existingSubs, newBranch];
-            const newSubIdx = updatedSubPaths.length - 1;
-
-            const newMeshPt = {
-              id: `mpt_ext_${Date.now()}`,
-              originalX: cursorLocal.x,
-              originalY: cursorLocal.y,
-              currentX: cursorLocal.x,
-              currentY: cursorLocal.y,
-              pinned: false,
-              pinType: null as any
-            };
-
-            const existingMeshPoints = obj.meshState?.points || [];
-            const updatedMeshPoints = [...existingMeshPoints, newMeshPt];
-            const newMeshPtIdx = updatedMeshPoints.length - 1;
-
-            updateObjectProperties(obj.id, {
-              subPaths: updatedSubPaths,
-              points: updatedSubPaths.flat(),
-              meshState: {
-                active: true,
-                densityX: obj.meshState?.densityX || 5,
-                densityY: obj.meshState?.densityY || 5,
-                points: updatedMeshPoints,
-                originalPoints: [...(obj.meshState?.originalPoints || existingMeshPoints), newMeshPt],
-                pointSize: obj.meshState?.pointSize || 30,
-                showGrid: obj.meshState?.showGrid ?? true,
-                showPoints: true,
-                previewMode: true,
-                editMode: 'node',
-                falloffRadius: obj.meshState?.falloffRadius || 100,
-                pointExtrudeMode: true
-              }
-            });
-
-            setDragMode('extrudeBranchPoint');
-            setExtrudeSubPathIndex(newSubIdx);
-            setDraggedMeshPointIndex(newMeshPtIdx);
-            setDragStartPoint(coords);
-            return;
-          }
-
-          if (clickedMptIndex !== -1) {
-            setDragMode('meshGridPoint');
-            setDraggedMeshPointIndex(clickedMptIndex);
-            setDragStartPoint(coords);
-            if (setSelectedDeformPointIndex && setSelectedDeformPointType && setOriginalDeformPointCoords && setDeformPointTransform) {
-              setSelectedDeformPointIndex(clickedMptIndex);
-              setSelectedDeformPointType('grid');
-              setOriginalDeformPointCoords({
-                x: obj.meshState.points[clickedMptIndex].currentX,
-                y: obj.meshState.points[clickedMptIndex].currentY
-              });
-              setDeformPointTransform({
-                x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, skewX: 0, skewY: 0, rotateX: 0, rotateY: 0, perspective: 0, cameraAngleX: 0, cameraAngleY: 0
-              });
-            }
-            return;
-          }
-        } else {
-          // 2. Otherwise, check for standard drawing outline points dragging
-          let clickedPointIndex = -1;
-          let minPtDist = 14; // Pixels threshold in world space
-
-          const ptsToUse = (obj.points && obj.points.length > 0) ? obj.points : (obj.subPaths ? obj.subPaths.flat() : []);
-
-          ptsToUse.forEach((pt, idx) => {
-            const worldPt = localToWorld(pt, obj.transform, obj.pivots[0]);
-            const d = distance(coords, worldPt);
-            if (d < minPtDist) {
-              minPtDist = d;
-              clickedPointIndex = idx;
-            }
-          });
-
-          if (clickedPointIndex !== -1) {
-            if (!obj.points || obj.points.length === 0) {
-              updateObjectProperties(obj.id, { points: ptsToUse });
-            }
-            setDragMode('meshPoint');
-            setDraggedMeshPointIndex(clickedPointIndex);
-            setDragStartPoint(coords);
-            if (setSelectedDeformPointIndex && setSelectedDeformPointType && setOriginalDeformPointCoords && setDeformPointTransform) {
-              setSelectedDeformPointIndex(clickedPointIndex);
-              setSelectedDeformPointType('standard');
-              setOriginalDeformPointCoords({
-                x: obj.points[clickedPointIndex].x,
-                y: obj.points[clickedPointIndex].y
-              });
-              setDeformPointTransform({
-                x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, skewX: 0, skewY: 0, rotateX: 0, rotateY: 0, perspective: 0, cameraAngleX: 0, cameraAngleY: 0
-              });
-            }
-            return;
-          }
+          return;
         }
       }
+      
+      // Auto-activate meshState grid if not active yet
+      if (!obj.meshState || !obj.meshState.active) {
+        const pts = (obj.points && obj.points.length > 0) ? obj.points : (obj.subPaths ? obj.subPaths.flat() : []);
+        const bounds = calculateBoundingBox(pts.length > 0 ? pts : [{x: coords.x - 50, y: coords.y - 50}, {x: coords.x + 50, y: coords.y + 50}]);
+        const rows = 3;
+        const cols = 3;
+        const gridPts: any[] = [];
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const x = bounds.x + (c / (cols - 1)) * (bounds.width || 100);
+            const y = bounds.y + (r / (rows - 1)) * (bounds.height || 100);
+            gridPts.push({
+              id: `mpt_${r}_${c}`,
+              originalX: x,
+              originalY: y,
+              currentX: x,
+              currentY: y,
+              row: r,
+              col: c
+            });
+          }
+        }
+        const newMeshState = {
+          active: true,
+          rows,
+          cols,
+          densityX: 3,
+          densityY: 3,
+          points: gridPts,
+          originalPoints: gridPts,
+          pointSize: 30,
+          showGrid: true,
+          showPoints: true,
+          previewMode: true,
+          editMode: 'node' as const,
+          falloffRadius: 80,
+          symmetryActive: false,
+          symmetryAxis: 'horizontal' as const,
+        };
+        updateObjectProperties(obj.id, { meshState: newMeshState });
+        obj.meshState = newMeshState;
+      }
 
-      // If we didn't drag any mesh point, select drawing
-      const clickedObj = performHitTest(coords);
-      if (clickedObj) {
-        setSelectedObjectId(clickedObj.id);
+      // 1. If mesh wrap grid is active, prioritize dragging mesh grid control points or lattice points!
+      if (obj.meshState && obj.meshState.active) {
+        // Check lattice points first if in lattice mode
+        if (obj.meshState.editMode === 'lattice' && obj.meshState.latticePoints && obj.meshState.latticePoints.length > 0) {
+          let clickedLptIdx = -1;
+          let minLptDist = 14;
+          obj.meshState.latticePoints.forEach((lpt: any, idx: number) => {
+            const worldPt = localToWorld({ x: lpt.x, y: lpt.y }, obj.transform, obj.pivots[0]);
+            const d = distance(coords, worldPt);
+            if (d < minLptDist) {
+              minLptDist = d;
+              clickedLptIdx = idx;
+            }
+          });
+          if (clickedLptIdx !== -1) {
+            setDragMode('latticePoint');
+            setDraggedMeshPointIndex(clickedLptIdx);
+            setDragStartPoint(coords);
+            return;
+          }
+        }
+
+        let clickedMptIndex = -1;
+        let minMptDist = 18; // Pixels threshold in world space
+        if (obj.meshState && obj.meshState.points) {
+          obj.meshState.points.forEach((mpt, idx) => {
+            const worldPt = localToWorld({ x: mpt.currentX, y: mpt.currentY }, obj.transform, obj.pivots[0]);
+            const d = distance(coords, worldPt);
+            if (d < minMptDist) {
+              minMptDist = d;
+              clickedMptIndex = idx;
+            }
+          });
+        }
+
+        // Check standard drawing outline points
+        let clickedVtxIdx = -1;
+        let minVtxDist = 18;
+        const ptsToUse = (obj.points && obj.points.length > 0) ? obj.points : (obj.subPaths ? obj.subPaths.flat() : []);
+        ptsToUse.forEach((pt, idx) => {
+          const worldPt = localToWorld(pt, obj.transform, obj.pivots[0]);
+          const d = distance(coords, worldPt);
+          if (d < minVtxDist) {
+            minVtxDist = d;
+            clickedVtxIdx = idx;
+          }
+        });
+
+        const isExtrudeMode = obj.meshState?.pointExtrudeMode || canvasExtrudeMode;
+
+        if (isExtrudeMode && (clickedMptIndex !== -1 || clickedVtxIdx !== -1)) {
+          // ⚡ EXTRUDE NEW POINT / BRANCH MODE ACTIVE!
+          const pivot = obj.pivots[0] || { localX: 0, localY: 0 };
+          const cursorLocal = worldToLocal(coords, obj.transform, pivot);
+          
+          let anchorLocal: Point;
+          if (clickedMptIndex !== -1 && obj.meshState && obj.meshState.points[clickedMptIndex]) {
+            const mpt = obj.meshState.points[clickedMptIndex];
+            anchorLocal = { x: mpt.currentX, y: mpt.currentY };
+          } else if (clickedVtxIdx !== -1 && ptsToUse[clickedVtxIdx]) {
+            anchorLocal = { x: ptsToUse[clickedVtxIdx].x, y: ptsToUse[clickedVtxIdx].y };
+          } else {
+            anchorLocal = { x: cursorLocal.x, y: cursorLocal.y };
+          }
+
+          // Create new branch stroke connecting anchorLocal -> cursorLocal
+          const newBranch = [
+            { x: anchorLocal.x, y: anchorLocal.y },
+            { x: cursorLocal.x, y: cursorLocal.y }
+          ];
+
+          const existingSubs = obj.subPaths && obj.subPaths.length > 0
+            ? [...obj.subPaths]
+            : (obj.points && obj.points.length > 0 ? [[...obj.points]] : []);
+
+          const updatedSubPaths = [...existingSubs, newBranch];
+          const newSubIdx = updatedSubPaths.length - 1;
+
+          const newMeshPt = {
+            id: `mpt_ext_${Date.now()}`,
+            originalX: cursorLocal.x,
+            originalY: cursorLocal.y,
+            currentX: cursorLocal.x,
+            currentY: cursorLocal.y,
+            pinned: false,
+            pinType: null as any
+          };
+
+          const existingMeshPoints = obj.meshState?.points || [];
+          const updatedMeshPoints = [...existingMeshPoints, newMeshPt];
+          const newMeshPtIdx = updatedMeshPoints.length - 1;
+
+          updateObjectProperties(obj.id, {
+            subPaths: updatedSubPaths,
+            points: updatedSubPaths.flat(),
+            meshState: {
+              active: true,
+              densityX: obj.meshState?.densityX || 5,
+              densityY: obj.meshState?.densityY || 5,
+              points: updatedMeshPoints,
+              originalPoints: [...(obj.meshState?.originalPoints || existingMeshPoints), newMeshPt],
+              pointSize: obj.meshState?.pointSize || 30,
+              showGrid: obj.meshState?.showGrid ?? true,
+              showPoints: true,
+              previewMode: true,
+              editMode: 'node',
+              falloffRadius: obj.meshState?.falloffRadius || 100,
+              pointExtrudeMode: true
+            }
+          });
+
+          setDragMode('extrudeBranchPoint');
+          setExtrudeSubPathIndex(newSubIdx);
+          setDraggedMeshPointIndex(newMeshPtIdx);
+          setDragStartPoint(coords);
+          return;
+        }
+
+        if (clickedMptIndex !== -1) {
+          setDragMode('meshGridPoint');
+          setDraggedMeshPointIndex(clickedMptIndex);
+          setDragStartPoint(coords);
+          if (setSelectedDeformPointIndex && setSelectedDeformPointType && setOriginalDeformPointCoords && setDeformPointTransform) {
+            setSelectedDeformPointIndex(clickedMptIndex);
+            setSelectedDeformPointType('grid');
+            setOriginalDeformPointCoords({
+              x: obj.meshState.points[clickedMptIndex].currentX,
+              y: obj.meshState.points[clickedMptIndex].currentY
+            });
+            setDeformPointTransform({
+              x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, skewX: 0, skewY: 0, rotateX: 0, rotateY: 0, perspective: 0, cameraAngleX: 0, cameraAngleY: 0
+            });
+          }
+          return;
+        }
+
+        // 2. Otherwise, check for standard drawing outline points dragging
+        let clickedPointIndex = -1;
+        let minPtDist = 18; // Pixels threshold in world space
+
+        ptsToUse.forEach((pt, idx) => {
+          const worldPt = localToWorld(pt, obj.transform, obj.pivots[0]);
+          const d = distance(coords, worldPt);
+          if (d < minPtDist) {
+            minPtDist = d;
+            clickedPointIndex = idx;
+          }
+        });
+
+        if (clickedPointIndex !== -1) {
+          if (!obj.points || obj.points.length === 0) {
+            updateObjectProperties(obj.id, { points: ptsToUse });
+          }
+          setDragMode('meshPoint');
+          setDraggedMeshPointIndex(clickedPointIndex);
+          setDragStartPoint(coords);
+          if (setSelectedDeformPointIndex && setSelectedDeformPointType && setOriginalDeformPointCoords && setDeformPointTransform) {
+            setSelectedDeformPointIndex(clickedPointIndex);
+            setSelectedDeformPointType('standard');
+            setOriginalDeformPointCoords({
+              x: obj.points[clickedPointIndex].x,
+              y: obj.points[clickedPointIndex].y
+            });
+            setDeformPointTransform({
+              x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, skewX: 0, skewY: 0, rotateX: 0, rotateY: 0, perspective: 0, cameraAngleX: 0, cameraAngleY: 0
+            });
+          }
+          return;
+        }
       }
       return;
     }
 
     // 9.6. Spline Reshape Tool pointer down logic
     if (activeTool === 'SPL') {
-      if (selectedObjectId && objects[selectedObjectId]) {
-        const obj = objects[selectedObjectId];
-        const pivot = obj.pivots[0] || { localX: 0, localY: 0 };
+      const obj = getOrPrepareActiveObject(coords);
+      const pivot = obj.pivots[0] || { localX: 0, localY: 0 };
 
-        if (!obj.splineActive || !obj.splineControlPoints || obj.splineControlPoints.length === 0) {
-          const pts = (obj.points && obj.points.length > 0) ? obj.points : (obj.subPaths ? obj.subPaths.flat() : [{x: 0, y: 0}, {x: 100, y: 100}]);
-          const bounds = calculateBoundingBox(pts);
-          const startX = bounds.x;
-          const stepX = (bounds.width || 100) / 3;
-          const midY = bounds.y + (bounds.height || 100) / 2;
-          const splineControlPoints = [];
-          for (let i = 0; i < 3; i++) {
-            const segStart = { x: startX + i * stepX, y: midY };
-            const segEnd = { x: startX + (i + 1) * stepX, y: midY };
-            splineControlPoints.push({
-              start: segStart,
-              cp1: { x: segStart.x + stepX * 0.33, y: midY },
-              cp2: { x: segEnd.x - stepX * 0.33, y: midY },
-              end: segEnd
-            });
-          }
-          const splineTwistPoints = [
-            { id: 'twist_0', t: 0.25, rotation: 0, scale: 1.0 },
-            { id: 'twist_1', t: 0.5, rotation: 0, scale: 1.0 },
-            { id: 'twist_2', t: 0.75, rotation: 0, scale: 1.0 }
-          ];
-          updateObjectProperties(obj.id, {
-            splineActive: true,
-            splineControlPoints,
-            splineTwistPoints,
-            splineUniformStretch: true,
-            splineOriginalPoints: JSON.parse(JSON.stringify(pts))
+      if (!obj.splineActive || !obj.splineControlPoints || obj.splineControlPoints.length === 0) {
+        const pts = (obj.points && obj.points.length > 0) ? obj.points : (obj.subPaths ? obj.subPaths.flat() : [{x: 0, y: 0}, {x: 100, y: 100}]);
+        const bounds = calculateBoundingBox(pts);
+        const startX = bounds.x;
+        const stepX = (bounds.width || 100) / 3;
+        const midY = bounds.y + (bounds.height || 100) / 2;
+        const splineControlPoints = [];
+        for (let i = 0; i < 3; i++) {
+          const segStart = { x: startX + i * stepX, y: midY };
+          const segEnd = { x: startX + (i + 1) * stepX, y: midY };
+          splineControlPoints.push({
+            start: segStart,
+            cp1: { x: segStart.x + stepX * 0.33, y: midY },
+            cp2: { x: segEnd.x - stepX * 0.33, y: midY },
+            end: segEnd
           });
         }
-        
-        // A. Check if we clicked a Twist Point marker
-        if (obj.splineTwistPoints && obj.splineTwistPoints.length > 0 && obj.splineControlPoints) {
-          let clickedTwistIdx = -1;
-          let minTwistDist = 14;
-          obj.splineTwistPoints.forEach((tp: any, idx: number) => {
-            const localPos = evaluateSplineCurrent(obj.splineControlPoints!, tp.t);
-            const worldPt = localToWorld(localPos, obj.transform, pivot);
-            const d = distance(coords, worldPt);
-            if (d < minTwistDist) {
-              minTwistDist = d;
-              clickedTwistIdx = idx;
-            }
-          });
-          if (clickedTwistIdx !== -1) {
-            setDragMode('splineHandle');
-            setDraggedSplineIndex(clickedTwistIdx);
-            setDraggedSplinePart('twist');
-            setDragStartPoint(coords);
-            return;
+        const splineTwistPoints = [
+          { id: 'twist_0', t: 0.25, rotation: 0, scale: 1.0 },
+          { id: 'twist_1', t: 0.5, rotation: 0, scale: 1.0 },
+          { id: 'twist_2', t: 0.75, rotation: 0, scale: 1.0 }
+        ];
+        updateObjectProperties(obj.id, {
+          splineActive: true,
+          splineControlPoints,
+          splineTwistPoints,
+          splineUniformStretch: true,
+          splineOriginalPoints: JSON.parse(JSON.stringify(pts))
+        });
+      }
+      
+      // A. Check if we clicked a Twist Point marker
+      if (obj.splineTwistPoints && obj.splineTwistPoints.length > 0 && obj.splineControlPoints) {
+        let clickedTwistIdx = -1;
+        let minTwistDist = 14;
+        obj.splineTwistPoints.forEach((tp: any, idx: number) => {
+          const localPos = evaluateSplineCurrent(obj.splineControlPoints!, tp.t);
+          const worldPt = localToWorld(localPos, obj.transform, pivot);
+          const d = distance(coords, worldPt);
+          if (d < minTwistDist) {
+            minTwistDist = d;
+            clickedTwistIdx = idx;
           }
-        }
-        
-        // B. Check if we clicked any control points or handles
-        if (obj.splineControlPoints && obj.splineControlPoints.length > 0) {
-          let clickedSegIdx = -1;
-          let clickedPart: 'start' | 'end' | 'cp1' | 'cp2' | null = null;
-          let minDist = 14;
-          
-          obj.splineControlPoints.forEach((seg: any, idx: number) => {
-            const worldStart = localToWorld(seg.start, obj.transform, pivot);
-            const worldEnd = localToWorld(seg.end, obj.transform, pivot);
-            const worldCp1 = localToWorld(seg.cp1, obj.transform, pivot);
-            const worldCp2 = localToWorld(seg.cp2, obj.transform, pivot);
-            
-            const dStart = distance(coords, worldStart);
-            const dEnd = distance(coords, worldEnd);
-            const dCp1 = distance(coords, worldCp1);
-            const dCp2 = distance(coords, worldCp2);
-            
-            if (dStart < minDist) { minDist = dStart; clickedSegIdx = idx; clickedPart = 'start'; }
-            if (dEnd < minDist) { minDist = dEnd; clickedSegIdx = idx; clickedPart = 'end'; }
-            if (dCp1 < minDist) { minDist = dCp1; clickedSegIdx = idx; clickedPart = 'cp1'; }
-            if (dCp2 < minDist) { minDist = dCp2; clickedSegIdx = idx; clickedPart = 'cp2'; }
-          });
-          
-          if (clickedSegIdx !== -1 && clickedPart) {
-            setDragMode('splineHandle');
-            setDraggedSplineIndex(clickedSegIdx);
-            setDraggedSplinePart(clickedPart);
-            setDragStartPoint(coords);
-            return;
-          }
+        });
+        if (clickedTwistIdx !== -1) {
+          setDragMode('splineHandle');
+          setDraggedSplineIndex(clickedTwistIdx);
+          setDraggedSplinePart('twist');
+          setDragStartPoint(coords);
+          return;
         }
       }
       
-      const clickedObj = performHitTest(coords);
-      if (clickedObj) {
-        setSelectedObjectId(clickedObj.id);
+      // B. Check if we clicked any control points or handles
+      if (obj.splineControlPoints && obj.splineControlPoints.length > 0) {
+        let clickedSegIdx = -1;
+        let clickedPart: 'start' | 'end' | 'cp1' | 'cp2' | null = null;
+        let minDist = 14;
+        
+        obj.splineControlPoints.forEach((seg: any, idx: number) => {
+          const worldStart = localToWorld(seg.start, obj.transform, pivot);
+          const worldEnd = localToWorld(seg.end, obj.transform, pivot);
+          const worldCp1 = localToWorld(seg.cp1, obj.transform, pivot);
+          const worldCp2 = localToWorld(seg.cp2, obj.transform, pivot);
+          
+          const dStart = distance(coords, worldStart);
+          const dEnd = distance(coords, worldEnd);
+          const dCp1 = distance(coords, worldCp1);
+          const dCp2 = distance(coords, worldCp2);
+          
+          if (dStart < minDist) { minDist = dStart; clickedSegIdx = idx; clickedPart = 'start'; }
+          if (dEnd < minDist) { minDist = dEnd; clickedSegIdx = idx; clickedPart = 'end'; }
+          if (dCp1 < minDist) { minDist = dCp1; clickedSegIdx = idx; clickedPart = 'cp1'; }
+          if (dCp2 < minDist) { minDist = dCp2; clickedSegIdx = idx; clickedPart = 'cp2'; }
+        });
+        
+        if (clickedSegIdx !== -1 && clickedPart) {
+          setDragMode('splineHandle');
+          setDraggedSplineIndex(clickedSegIdx);
+          setDraggedSplinePart(clickedPart);
+          setDragStartPoint(coords);
+          return;
+        }
       }
       return;
     }
 
     // MCL (Mesh Coloring) tool pointer down logic
     if (activeTool === 'MCL') {
-      if (selectedObjectId && objects[selectedObjectId]) {
-        const obj = objects[selectedObjectId];
-        if (obj.smartMeshColor) {
-          setIsDrawing(true); // set flag to indicate active painting
-          setDragMode('paintColor');
-          // Paint immediately at first click
-          paintColorAt(coords, obj);
-          return;
-        }
-      }
-      // If we didn't paint, check if clicking another object
-      const clickedObj = performHitTest(coords);
-      if (clickedObj) {
-        setSelectedObjectId(clickedObj.id);
+      const obj = getOrPrepareActiveObject(coords);
+      if (obj.smartMeshColor) {
+        setIsDrawing(true);
+        setDragMode('paintColor');
+        paintColorAt(coords, obj);
+        return;
       }
       return;
     }
@@ -3666,117 +3736,113 @@ export default function CanvasArea({
 
     // SWP (Smart Warp Pin) tool pointer down logic
     if (activeTool === 'SWP') {
-      if (selectedObjectId && objects[selectedObjectId]) {
-        const obj = objects[selectedObjectId];
-        if (obj.smartWarp) {
-          // 1. Check if we clicked on an existing smart warp pin to drag it!
-          let clickedPinIdx = -1;
-          let minPinDist = obj.smartWarp.pinSize || 30;
-          obj.smartWarp.pins.forEach((pin, idx) => {
-            const worldPin = localToWorld({ x: pin.currentX, y: pin.currentY }, obj.transform, obj.pivots[0]);
-            const d = distance(coords, worldPin);
-            if (d < minPinDist) {
-              minPinDist = d;
-              clickedPinIdx = idx;
-            }
-          });
-
-          if (clickedPinIdx !== -1) {
-            setDragMode('smartWarpPin');
-            setDraggedMeshPointIndex(clickedPinIdx);
-            setDragStartPoint(coords);
-            return;
-          }
-
-          // 2. Otherwise, check if we clicked on the drawing to add a new pin!
-          const localPos = worldToLocal(coords, obj.transform, obj.pivots[0]);
-          const newPin: SmartWarpPin = {
-            id: `swp_pin_${Date.now()}`,
-            originalX: Number(localPos.x.toFixed(2)),
-            originalY: Number(localPos.y.toFixed(2)),
-            currentX: Number(localPos.x.toFixed(2)),
-            currentY: Number(localPos.y.toFixed(2)),
+      let obj = getOrPrepareActiveObject(coords);
+      if (!obj.smartWarp) {
+        const initPins: SmartWarpPin[] = [
+          {
+            id: `swp_pin_${Date.now()}_1`,
+            originalX: coords.x - 40,
+            originalY: coords.y - 40,
+            currentX: coords.x - 40,
+            currentY: coords.y - 40,
             locked: false,
-            size: obj.smartWarp.pinSize || 16,
+            size: 16,
             color: '#0EA5E9',
-            influenceRadius: obj.smartWarp.influenceRadius || 120,
-            influenceFalloff: obj.smartWarp.influenceFalloff || 'smooth'
-          };
+            influenceRadius: 120,
+            influenceFalloff: 'smooth'
+          }
+        ];
+        const newSmartWarp = {
+          active: true,
+          pinSize: 16,
+          influenceRadius: 120,
+          influenceFalloff: 'smooth' as const,
+          showInfluenceArea: true,
+          previewMode: true,
+          pins: initPins
+        };
+        updateObjectProperties(obj.id, { smartWarp: newSmartWarp });
+        obj = { ...obj, smartWarp: newSmartWarp };
+      }
 
-          const updatedPins = [...(obj.smartWarp.pins || []), newPin];
-          setObjects(prev => {
-            const curObj = prev[selectedObjectId];
-            if (!curObj) return prev;
-            return {
-              ...prev,
-              [selectedObjectId]: {
-                ...curObj,
-                smartWarp: {
-                  ...curObj.smartWarp!,
-                  pins: updatedPins
-                }
-              }
-            };
-          });
-          historyPush();
-          return;
+      // 1. Check if we clicked on an existing smart warp pin to drag it!
+      let clickedPinIdx = -1;
+      let minPinDist = obj.smartWarp.pinSize || 30;
+      obj.smartWarp.pins.forEach((pin, idx) => {
+        const worldPin = localToWorld({ x: pin.currentX, y: pin.currentY }, obj.transform, obj.pivots[0]);
+        const d = distance(coords, worldPin);
+        if (d < minPinDist) {
+          minPinDist = d;
+          clickedPinIdx = idx;
         }
+      });
+
+      if (clickedPinIdx !== -1) {
+        setDragMode('smartWarpPin');
+        setDraggedMeshPointIndex(clickedPinIdx);
+        setDragStartPoint(coords);
+        return;
       }
-      // If we clicked outside, select another drawing
-      const clickedObj = performHitTest(coords);
-      if (clickedObj) {
-        setSelectedObjectId(clickedObj.id);
-      }
+
+      // 2. Otherwise, add a new pin!
+      const localPos = worldToLocal(coords, obj.transform, obj.pivots[0]);
+      const newPin: SmartWarpPin = {
+        id: `swp_pin_${Date.now()}`,
+        originalX: Number(localPos.x.toFixed(2)),
+        originalY: Number(localPos.y.toFixed(2)),
+        currentX: Number(localPos.x.toFixed(2)),
+        currentY: Number(localPos.y.toFixed(2)),
+        locked: false,
+        size: obj.smartWarp.pinSize || 16,
+        color: '#0EA5E9',
+        influenceRadius: obj.smartWarp.influenceRadius || 120,
+        influenceFalloff: obj.smartWarp.influenceFalloff || 'smooth'
+      };
+
+      const updatedPins = [...(obj.smartWarp.pins || []), newPin];
+      setObjects(prev => ({
+        ...prev,
+        [obj.id]: {
+          ...prev[obj.id],
+          smartWarp: {
+            ...prev[obj.id].smartWarp!,
+            pins: updatedPins
+          }
+        }
+      }));
+      historyPush();
       return;
     }
 
     // CAG (Cage Deform) tool pointer down logic
     if (activeTool === 'CAG') {
-      let activeId = selectedObjectId;
-      if (!activeId) {
-        const clickedObj = performHitTest(coords);
-        if (clickedObj) {
-          setSelectedObjectId(clickedObj.id);
-          activeId = clickedObj.id;
-        }
+      let obj = getOrPrepareActiveObject(coords);
+      
+      // Auto-initialize cage state if not present or inactive
+      if (!obj.cageState || !obj.cageState.active) {
+        const cs = initializeCageState(obj);
+        updateObjectProperties(obj.id, { cageState: cs });
+        obj = { ...obj, cageState: cs };
       }
 
-      if (activeId && objects[activeId]) {
-        let obj = objects[activeId];
-        
-        // Auto-initialize cage state if not present or inactive
-        if (!obj.cageState || !obj.cageState.active) {
-          const cs = initializeCageState(obj);
-          setObjects(prev => ({
-            ...prev,
-            [activeId!]: {
-              ...prev[activeId!],
-              cageState: cs
-            }
-          }));
-          obj = { ...obj, cageState: cs };
-        }
-
-        if (obj.cageState && obj.cageState.points) {
-          // Check if we clicked on an existing cage point to drag it
-          let clickedPtIdx = -1;
-          let minPtDist = 30; // Drag handle click radius
-          obj.cageState.points.forEach((pt, idx) => {
-            const worldPt = localToWorld({ x: pt.currentX, y: pt.currentY }, obj.transform, obj.pivots[0]);
-            const d = distance(coords, worldPt);
-            if (d < minPtDist) {
-              minPtDist = d;
-              clickedPtIdx = idx;
-            }
-          });
-
-          if (clickedPtIdx !== -1) {
-            setDragMode('cagePoint' as any);
-            setDraggedMeshPointIndex(clickedPtIdx);
-            setDragStartPoint(coords);
-            historyPush();
-            return;
+      if (obj.cageState && obj.cageState.points) {
+        let clickedPtIdx = -1;
+        let minPtDist = 30;
+        obj.cageState.points.forEach((pt, idx) => {
+          const worldPt = localToWorld({ x: pt.currentX, y: pt.currentY }, obj.transform, obj.pivots[0]);
+          const d = distance(coords, worldPt);
+          if (d < minPtDist) {
+            minPtDist = d;
+            clickedPtIdx = idx;
           }
+        });
+
+        if (clickedPtIdx !== -1) {
+          setDragMode('cagePoint' as any);
+          setDraggedMeshPointIndex(clickedPtIdx);
+          setDragStartPoint(coords);
+          historyPush();
+          return;
         }
       }
       return;
@@ -3784,128 +3850,102 @@ export default function CanvasArea({
 
     // CPT & CRV (Curve Path & Curve Line Deformer) pointer down logic
     if (activeTool === 'CPT' || activeTool === 'CRV') {
-      let activeId = selectedObjectId;
-      if (!activeId) {
-        const clickedObj = performHitTest(coords);
-        if (clickedObj) {
-          setSelectedObjectId(clickedObj.id);
-          activeId = clickedObj.id;
-        }
+      let obj = getOrPrepareActiveObject(coords);
+      
+      // Auto-initialize Curve Path state
+      if (!obj.curvePathState || !obj.curvePathState.active) {
+        const initCps = initializeCurvePathState(obj);
+        updateObjectProperties(obj.id, { curvePathState: initCps });
+        obj = { ...obj, curvePathState: initCps };
       }
 
-      if (activeId && objects[activeId]) {
-        let obj = objects[activeId];
-        
-        // Auto-initialize Curve Path state (horizontal & vertical curve lines) if not present or inactive
-        if (!obj.curvePathState || !obj.curvePathState.active) {
-          const initCps = initializeCurvePathState(obj);
-          setObjects(prev => ({
-            ...prev,
-            [activeId!]: {
-              ...prev[activeId!],
-              curvePathState: initCps
-            }
-          }));
-          obj = { ...obj, curvePathState: initCps };
-        }
+      // Auto-initialize Flex Curve state
+      if (!obj.flexCurveState || !obj.flexCurveState.active) {
+        const initFcs = initializeFlexCurveState(obj);
+        updateObjectProperties(obj.id, { flexCurveState: initFcs });
+        obj = { ...obj, flexCurveState: initFcs };
+      }
 
-        // Auto-initialize Flex Curve state if not present or inactive
-        if (!obj.flexCurveState || !obj.flexCurveState.active) {
-          const initFcs = initializeFlexCurveState(obj);
-          setObjects(prev => ({
-            ...prev,
-            [activeId!]: {
-              ...prev[activeId!],
-              flexCurveState: initFcs
-            }
-          }));
-          obj = { ...obj, flexCurveState: initFcs };
-        }
+      const localPivot = obj.pivots[0] || { localX: 0, localY: 0 };
 
-        const localPivot = obj.pivots[0] || { localX: 0, localY: 0 };
+      if (obj.curvePathState) {
+        const cps = obj.curvePathState;
+        const hCPs = cps.hControlPoints || [];
+        const vCPs = cps.vControlPoints || [];
+        let clickedIdx = -1;
+        let isH = false;
+        let minDist = 30 / zoomScale;
 
-        // 1. Check Horizontal curve control points (Left-to-Right)
-        if (obj.curvePathState) {
-          const cps = obj.curvePathState;
-          const hCPs = cps.hControlPoints || [];
-          const vCPs = cps.vControlPoints || [];
-          let clickedIdx = -1;
-          let isH = false;
-          let minDist = 30 / zoomScale;
+        hCPs.forEach((pt, idx) => {
+          const worldPt = localToWorld(pt, obj.transform, localPivot);
+          const d = distance(coords, worldPt);
+          if (d < minDist) {
+            minDist = d;
+            clickedIdx = idx;
+            isH = true;
+          }
+        });
 
-          hCPs.forEach((pt, idx) => {
+        if (clickedIdx === -1) {
+          vCPs.forEach((pt, idx) => {
             const worldPt = localToWorld(pt, obj.transform, localPivot);
             const d = distance(coords, worldPt);
             if (d < minDist) {
               minDist = d;
               clickedIdx = idx;
-              isH = true;
+              isH = false;
             }
           });
+        }
 
-          // 2. Check Vertical curve control points (Top-to-Bottom)
-          if (clickedIdx === -1) {
-            vCPs.forEach((pt, idx) => {
-              const worldPt = localToWorld(pt, obj.transform, localPivot);
-              const d = distance(coords, worldPt);
-              if (d < minDist) {
-                minDist = d;
-                clickedIdx = idx;
-                isH = false;
-              }
-            });
+        if (clickedIdx !== -1) {
+          setDragMode(isH ? 'curvePathH' : 'curvePathV' as any);
+          setDraggedMeshPointIndex(clickedIdx);
+          setDragStartPoint(coords);
+          historyPush();
+          return;
+        }
+      }
+
+      if (obj.flexCurveState && obj.flexCurveState.points) {
+        const fcs = obj.flexCurveState;
+        const pts = fcs.points || [];
+        let clickedIdx = -1;
+        let minDist = 30 / zoomScale;
+
+        pts.forEach((pt, idx) => {
+          const worldPt = localToWorld({ x: pt.x, y: pt.y }, obj.transform, localPivot);
+          const d = distance(coords, worldPt);
+          if (d < minDist) {
+            minDist = d;
+            clickedIdx = idx;
           }
+        });
 
-          if (clickedIdx !== -1) {
-            setDragMode(isH ? 'curvePathH' : 'curvePathV' as any);
-            setDraggedMeshPointIndex(clickedIdx);
-            setDragStartPoint(coords);
-            historyPush();
-            return;
+        if (clickedIdx !== -1) {
+          setDragMode('flexCurveHandle' as any);
+          setDraggedMeshPointIndex(clickedIdx);
+          setDragStartPoint(coords);
+          historyPush();
+          return;
+        }
+
+        const localPos = worldToLocal(coords, obj.transform, localPivot);
+        let closeToLine = false;
+        for (let i = 0; i < pts.length - 1; i++) {
+          const distSeg = distanceToSegment(localPos, { x: pts[i].x, y: pts[i].y }, { x: pts[i+1].x, y: pts[i+1].y });
+          if (distSeg < (35 / zoomScale)) {
+            closeToLine = true;
+            break;
           }
         }
 
-        // 3. Check Flex Curve control points & body
-        if (obj.flexCurveState && obj.flexCurveState.points) {
-          const fcs = obj.flexCurveState;
-          const pts = fcs.points || [];
-          let clickedIdx = -1;
-          let minDist = 30 / zoomScale;
-
-          pts.forEach((pt, idx) => {
-            const worldPt = localToWorld({ x: pt.x, y: pt.y }, obj.transform, localPivot);
-            const d = distance(coords, worldPt);
-            if (d < minDist) {
-              minDist = d;
-              clickedIdx = idx;
-            }
-          });
-
-          if (clickedIdx !== -1) {
-            setDragMode('flexCurveHandle' as any);
-            setDraggedMeshPointIndex(clickedIdx);
-            setDragStartPoint(coords);
-            historyPush();
-            return;
-          }
-
-          const localPos = worldToLocal(coords, obj.transform, localPivot);
-          let closeToLine = false;
-          for (let i = 0; i < pts.length - 1; i++) {
-            const distSeg = distanceToSegment(localPos, { x: pts[i].x, y: pts[i].y }, { x: pts[i+1].x, y: pts[i+1].y });
-            if (distSeg < (35 / zoomScale)) {
-              closeToLine = true;
-              break;
-            }
-          }
-
-          if (closeToLine) {
-            setDragMode('flexCurveBody' as any);
-            setDragStartPoint(coords);
-            (window as any)._initialFlexCurvePts = JSON.parse(JSON.stringify(pts));
-            historyPush();
-            return;
-          }
+        if (closeToLine) {
+          setDragMode('flexCurveBody' as any);
+          setDragStartPoint(coords);
+          (window as any)._initialFlexCurvePts = JSON.parse(JSON.stringify(pts));
+          historyPush();
+          return;
         }
       }
       return;
@@ -3913,286 +3953,210 @@ export default function CanvasArea({
 
     // PBM, VDF, VPR & RPD (Points Based Movement / Vector Deformation) pointer down logic
     if (activeTool === 'PBM' || activeTool === 'VDF' || activeTool === 'VPR' || activeTool === 'RPD') {
-      let activeId = selectedObjectId;
-      if (!activeId) {
-        const clickedObj = performHitTest(coords);
-        if (clickedObj) {
-          setSelectedObjectId(clickedObj.id);
-          activeId = clickedObj.id;
+      const obj = getOrPrepareActiveObject(coords);
+      const isRpd = activeTool === 'PBM' || activeTool === 'RPD';
+      const vdfState: CustomVectorDeformState = obj.customVectorDeformState || {
+        active: true,
+        isDrawingPhase: true,
+        nodes: [],
+        stiffness: 50,
+        captureRadius: 50,
+        rigidLinear: isRpd
+      };
+
+      const origPts = vdfState.origObjectPoints || JSON.parse(JSON.stringify(obj.points || []));
+      const origSubs = obj.originalSubPathsBackup || (obj.subPaths ? JSON.parse(JSON.stringify(obj.subPaths)) : undefined);
+
+      let clickedNodeIdx = -1;
+      let minDist = 24 / zoomScale;
+      (vdfState.nodes || []).forEach((n, idx) => {
+        const d = distance(coords, { x: n.x, y: n.y });
+        if (d < minDist) {
+          minDist = d;
+          clickedNodeIdx = idx;
         }
-      }
+      });
 
-      if (activeId && objects[activeId]) {
-        const obj = objects[activeId];
-        const isRpd = activeTool === 'PBM' || activeTool === 'RPD';
-        const vdfState: CustomVectorDeformState = obj.customVectorDeformState || {
-          active: true,
-          isDrawingPhase: true,
-          nodes: [],
-          stiffness: 50,
-          captureRadius: 50,
-          rigidLinear: isRpd
-        };
-
-        const origPts = vdfState.origObjectPoints || JSON.parse(JSON.stringify(obj.points || []));
-        const origSubs = obj.originalSubPathsBackup || (obj.subPaths ? JSON.parse(JSON.stringify(obj.subPaths)) : undefined);
-
-        // Check if user clicked an existing vector node
-        let clickedNodeIdx = -1;
-        let minDist = 24 / zoomScale;
-        (vdfState.nodes || []).forEach((n, idx) => {
-          const d = distance(coords, { x: n.x, y: n.y });
-          if (d < minDist) {
-            minDist = d;
-            clickedNodeIdx = idx;
-          }
-        });
-
-        const isExtrudeOn = !!vdfState.extrudePointMode;
-
-        if (isExtrudeOn) {
-          // STRICT EXTRUDE MODE: Extrude new point branching directly from the CURRENTLY SELECTED POINT
-          const currentNodes = vdfState.nodes || [];
-          const selIdx = (vdfState.selectedNodeIndex !== undefined && vdfState.selectedNodeIndex >= 0 && vdfState.selectedNodeIndex < currentNodes.length)
-            ? vdfState.selectedNodeIndex
-            : (currentNodes.length - 1);
-          
-          const parentNode = (selIdx >= 0 && selIdx < currentNodes.length) ? currentNodes[selIdx] : undefined;
-
-          const newNode: CustomVectorDeformNode = {
-            id: `vdf_node_${Date.now()}_${currentNodes.length}`,
-            x: coords.x,
-            y: coords.y,
-            origX: coords.x,
-            origY: coords.y,
-            parentNodeId: parentNode ? parentNode.id : undefined
-          };
-          const updatedNodes = [...currentNodes, newNode];
-
-          setObjects(prev => ({
-            ...prev,
-            [activeId!]: {
-              ...prev[activeId!],
-              originalSubPathsBackup: origSubs,
-              customVectorDeformState: {
-                ...vdfState,
-                active: true,
-                nodes: updatedNodes,
-                selectedNodeIndex: updatedNodes.length - 1,
-                origObjectPoints: origPts,
-                rigidLinear: isRpd ? true : vdfState.rigidLinear
-              }
+      if (clickedNodeIdx !== -1) {
+        setDragMode('vdf-node' as any);
+        setDraggedMeshPointIndex(clickedNodeIdx);
+        setDragStartPoint(coords);
+        setObjects(prev => ({
+          ...prev,
+          [obj.id]: {
+            ...prev[obj.id],
+            customVectorDeformState: {
+              ...vdfState,
+              selectedNodeIndex: clickedNodeIdx
             }
-          }));
-
-          setDragMode('vdf-node' as any);
-          setDraggedMeshPointIndex(updatedNodes.length - 1);
-          setDragStartPoint(coords);
-          historyPush();
-          return;
-        } else {
-          // EXTRUDE MODE IS OFF: Strictly do NOT extrude or create ANY new points!
-          if (clickedNodeIdx !== -1) {
-            // Select & drag existing clicked node
-            setDragMode('vdf-node' as any);
-            setDraggedMeshPointIndex(clickedNodeIdx);
-            setDragStartPoint(coords);
-            
-            setObjects(prev => ({
-              ...prev,
-              [activeId!]: {
-                ...prev[activeId!],
-                customVectorDeformState: {
-                  ...vdfState,
-                  selectedNodeIndex: clickedNodeIdx
-                }
-              }
-            }));
-
-            historyPush();
-            return;
           }
-
-          // EXTRUDE MODE IS OFF AND NO EXISTING POINT CLICKED -> STRICTLY DO NOTHING! NO POINTS CREATED!
-          return;
-        }
+        }));
+        historyPush();
+        return;
       }
+
+      // Auto-place vector node at clicked position so deformation works immediately!
+      const currentNodes = vdfState.nodes || [];
+      const parentNode = currentNodes.length > 0 ? currentNodes[currentNodes.length - 1] : undefined;
+      const newNode: CustomVectorDeformNode = {
+        id: `vdf_node_${Date.now()}_${currentNodes.length}`,
+        x: coords.x,
+        y: coords.y,
+        origX: coords.x,
+        origY: coords.y,
+        parentNodeId: parentNode ? parentNode.id : undefined
+      };
+      const updatedNodes = [...currentNodes, newNode];
+
+      setObjects(prev => ({
+        ...prev,
+        [obj.id]: {
+          ...prev[obj.id],
+          originalSubPathsBackup: origSubs,
+          customVectorDeformState: {
+            ...vdfState,
+            active: true,
+            nodes: updatedNodes,
+            selectedNodeIndex: updatedNodes.length - 1,
+            origObjectPoints: origPts,
+            rigidLinear: isRpd ? true : vdfState.rigidLinear
+          }
+        }
+      }));
+
+      setDragMode('vdf-node' as any);
+      setDraggedMeshPointIndex(updatedNodes.length - 1);
+      setDragStartPoint(coords);
+      historyPush();
       return;
     }
 
     // LQB (Liquify Brush) tool pointer down logic
     if (activeTool === 'LQB') {
-      let activeId = selectedObjectId;
-      if (!activeId) {
-        const clickedObj = performHitTest(coords);
-        if (clickedObj) {
-          setSelectedObjectId(clickedObj.id);
-          activeId = clickedObj.id;
-        }
+      let obj = getOrPrepareActiveObject(coords);
+      
+      // Auto-initialize mesh state if not present or inactive
+      if (!obj.meshState || !obj.meshState.active) {
+        const ms = initializeMeshState(obj);
+        updateObjectProperties(obj.id, { meshState: ms });
+        obj = { ...obj, meshState: ms };
       }
 
-      if (activeId && objects[activeId]) {
-        let obj = objects[activeId];
-        
-        // Auto-initialize mesh state if not present or inactive for non-destructive keyframeable liquify warping
-        if (!obj.meshState || !obj.meshState.active) {
-          const ms = initializeMeshState(obj);
-          setObjects(prev => ({
-            ...prev,
-            [activeId!]: {
-              ...prev[activeId!],
-              meshState: ms
-            }
-          }));
-          obj = { ...obj, meshState: ms };
-        }
-
-        const localPos = worldToLocal(coords, obj.transform, obj.pivots[0]);
-        lastLiquifyLocalPosRef.current = localPos;
-        setDragMode('liquify' as any);
-        setDragStartPoint(coords);
-        historyPush();
-      }
+      const localPos = worldToLocal(coords, obj.transform, obj.pivots[0]);
+      lastLiquifyLocalPosRef.current = localPos;
+      setDragMode('liquify' as any);
+      setDragStartPoint(coords);
+      historyPush();
       return;
     }
 
     // Direct Stroke Touch Pull (SPD) tool pointer down logic
     if (activeTool === 'SPD') {
-      let activeId = effectiveSelectedObjectId;
-      if (!activeId) {
-        const clickedObj = performHitTest(coords);
-        if (clickedObj) {
-          setSelectedObjectId(clickedObj.id);
-          activeId = clickedObj.id;
-        }
-      }
+      const obj = getOrPrepareActiveObject(coords);
+      const pivot = obj.pivots[0] || { localX: 0, localY: 0 };
+      const localStart = worldToLocal(coords, obj.transform, pivot);
 
-      if (activeId && objects[activeId]) {
-        const obj = objects[activeId];
-        const pivot = obj.pivots[0] || { localX: 0, localY: 0 };
-        const localStart = worldToLocal(coords, obj.transform, pivot);
+      strokePullStartLocalRef.current = localStart;
+      strokePullStartWorldRef.current = coords;
+      strokePullInitialPointsRef.current = JSON.parse(JSON.stringify(obj.points || []));
+      strokePullInitialSubPathsRef.current = obj.subPaths ? JSON.parse(JSON.stringify(obj.subPaths)) : null;
 
-        strokePullStartLocalRef.current = localStart;
-        strokePullStartWorldRef.current = coords;
-        strokePullInitialPointsRef.current = JSON.parse(JSON.stringify(obj.points || []));
-        strokePullInitialSubPathsRef.current = obj.subPaths ? JSON.parse(JSON.stringify(obj.subPaths)) : null;
-
-        setDragMode('strokePullDeform' as any);
-        setDragStartPoint(coords);
-        historyPush();
-      }
+      setDragMode('strokePullDeform' as any);
+      setDragStartPoint(coords);
+      historyPush();
       return;
     }
 
     // Direct Stroke Position Move (SPT) tool pointer down logic
     if (activeTool === 'SPT') {
-      let activeId = effectiveSelectedObjectId;
-      if (!activeId) {
-        const clickedObj = performHitTest(coords);
-        if (clickedObj) {
-          setSelectedObjectId(clickedObj.id);
-          activeId = clickedObj.id;
-        }
-      }
+      const obj = getOrPrepareActiveObject(coords);
+      const pivot = obj.pivots[0] || { localX: 0, localY: 0 };
+      const localStart = worldToLocal(coords, obj.transform, pivot);
+      const R = strokeMoveRadius || 50;
 
-      if (activeId && objects[activeId]) {
-        const obj = objects[activeId];
-        const pivot = obj.pivots[0] || { localX: 0, localY: 0 };
-        const localStart = worldToLocal(coords, obj.transform, pivot);
-        const R = strokeMoveRadius || 50;
+      strokeMoveStartLocalRef.current = localStart;
+      strokeMoveInitialPointsRef.current = JSON.parse(JSON.stringify(obj.points || []));
+      strokeMoveInitialSubPathsRef.current = obj.subPaths ? JSON.parse(JSON.stringify(obj.subPaths)) : null;
 
-        strokeMoveStartLocalRef.current = localStart;
-        strokeMoveInitialPointsRef.current = JSON.parse(JSON.stringify(obj.points || []));
-        strokeMoveInitialSubPathsRef.current = obj.subPaths ? JSON.parse(JSON.stringify(obj.subPaths)) : null;
+      const subPaths: Point[][] = obj.subPaths && obj.subPaths.length > 0 ? obj.subPaths : [obj.points || []];
+      const affectedSubPts: { sIdx: number; pIdx: number }[] = [];
+      const affectedSubIdxs: number[] = [];
 
-        const subPaths: Point[][] = obj.subPaths && obj.subPaths.length > 0 ? obj.subPaths : [obj.points || []];
-        const affectedSubPts: { sIdx: number; pIdx: number }[] = [];
-        const affectedSubIdxs: number[] = [];
+      if (strokeMoveScope === 'touched') {
+        subPaths.forEach((sub, sIdx) => {
+          sub.forEach((pt, pIdx) => {
+            if (Math.hypot(pt.x - localStart.x, pt.y - localStart.y) <= R) {
+              affectedSubPts.push({ sIdx, pIdx });
+            }
+          });
+        });
 
-        if (strokeMoveScope === 'touched') {
+        if (affectedSubPts.length === 0) {
+          let minD = Infinity;
+          let bestS = 0;
+          let bestP = 0;
           subPaths.forEach((sub, sIdx) => {
             sub.forEach((pt, pIdx) => {
-              if (Math.hypot(pt.x - localStart.x, pt.y - localStart.y) <= R) {
-                affectedSubPts.push({ sIdx, pIdx });
+              const d = Math.hypot(pt.x - localStart.x, pt.y - localStart.y);
+              if (d < minD) {
+                minD = d;
+                bestS = sIdx;
+                bestP = pIdx;
               }
             });
           });
 
-          // If no point was strictly within R, grab the closest point and its neighbors in the subpath
-          if (affectedSubPts.length === 0) {
-            let minD = Infinity;
-            let bestS = 0;
-            let bestP = 0;
-            subPaths.forEach((sub, sIdx) => {
-              sub.forEach((pt, pIdx) => {
-                const d = Math.hypot(pt.x - localStart.x, pt.y - localStart.y);
-                if (d < minD) {
-                  minD = d;
-                  bestS = sIdx;
-                  bestP = pIdx;
-                }
-              });
-            });
-
-            if (subPaths[bestS] && subPaths[bestS].length > 0) {
-              affectedSubPts.push({ sIdx: bestS, pIdx: bestP });
-              if (bestP > 0) affectedSubPts.push({ sIdx: bestS, pIdx: bestP - 1 });
-              if (bestP < subPaths[bestS].length - 1) affectedSubPts.push({ sIdx: bestS, pIdx: bestP + 1 });
-            }
-          }
-        } else {
-          // Entire stroke subpath(s)
-          subPaths.forEach((sub, sIdx) => {
-            const hasClose = sub.some(pt => Math.hypot(pt.x - localStart.x, pt.y - localStart.y) <= R);
-            if (hasClose) {
-              affectedSubIdxs.push(sIdx);
-            }
-          });
-          if (affectedSubIdxs.length === 0 && subPaths.length > 0) {
-            let minD = Infinity;
-            let minS = 0;
-            subPaths.forEach((sub, sIdx) => {
-              sub.forEach(pt => {
-                const d = Math.hypot(pt.x - localStart.x, pt.y - localStart.y);
-                if (d < minD) { minD = d; minS = sIdx; }
-              });
-            });
-            affectedSubIdxs.push(minS);
+          if (subPaths[bestS] && subPaths[bestS].length > 0) {
+            affectedSubPts.push({ sIdx: bestS, pIdx: bestP });
+            if (bestP > 0) affectedSubPts.push({ sIdx: bestS, pIdx: bestP - 1 });
+            if (bestP < subPaths[bestS].length - 1) affectedSubPts.push({ sIdx: bestS, pIdx: bestP + 1 });
           }
         }
-
-        strokeMoveAffectedSubPathsRef.current = affectedSubIdxs;
-        strokeMoveAffectedSubPointsRef.current = affectedSubPts;
-
-        setDragMode('strokeMovePos' as any);
-        setDragStartPoint(coords);
-        historyPush();
+      } else {
+        subPaths.forEach((sub, sIdx) => {
+          const hasClose = sub.some(pt => Math.hypot(pt.x - localStart.x, pt.y - localStart.y) <= R);
+          if (hasClose) {
+            affectedSubIdxs.push(sIdx);
+          }
+        });
+        if (affectedSubIdxs.length === 0 && subPaths.length > 0) {
+          let minD = Infinity;
+          let minS = 0;
+          subPaths.forEach((sub, sIdx) => {
+            sub.forEach(pt => {
+              const d = Math.hypot(pt.x - localStart.x, pt.y - localStart.y);
+              if (d < minD) { minD = d; minS = sIdx; }
+            });
+          });
+          affectedSubIdxs.push(minS);
+        }
       }
+
+      strokeMoveAffectedSubPathsRef.current = affectedSubIdxs;
+      strokeMoveAffectedSubPointsRef.current = affectedSubPts;
+
+      setDragMode('strokeMovePos' as any);
+      setDragStartPoint(coords);
+      historyPush();
       return;
     }
 
     // 9.5 2D-to-3D Stroke Extruder (S3D) Tool Handler
     if (activeTool === 'S3D') {
-      const activeId = effectiveSelectedObjectId || selectedObjectId;
-      if (activeId && objects[activeId]) {
-        let obj = objects[activeId];
-        if (obj.type !== '3d' || !obj.transform3D) {
-          const proj3D = projectStrokeTo3DVolumetric(obj, obj.depth3D || 35, 'bevel');
-          obj = proj3D;
-          setObjects(prev => ({
-            ...prev,
-            [activeId]: proj3D
-          }));
-        }
-        if (obj.transform3D) {
-          setInitialTransform({ ...obj.transform3D });
-        } else {
-          setInitialTransform({ rx: 15, ry: 25, rz: 0 } as any);
-        }
-        setDragMode('rotate3D' as any);
-        setDragStartPoint(coords);
-        historyPush();
+      let obj = getOrPrepareActiveObject(coords);
+      if (obj.type !== '3d' || !obj.transform3D) {
+        const proj3D = projectStrokeTo3DVolumetric(obj, obj.depth3D || 35, 'bevel');
+        updateObjectProperties(obj.id, proj3D);
+        obj = { ...obj, ...proj3D };
       }
+      if (obj.transform3D) {
+        setInitialTransform({ ...obj.transform3D });
+      } else {
+        setInitialTransform({ rx: 15, ry: 25, rz: 0 } as any);
+      }
+      setDragMode('rotate3D' as any);
+      setDragStartPoint(coords);
+      historyPush();
       return;
     }
 

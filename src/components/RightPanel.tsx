@@ -688,7 +688,7 @@ export default function RightPanel({
       setGlobalLassoSelectedMap(prev => Object.keys(prev).length > 0 ? {} : prev);
     }
     prevLassoPointsLengthRef.current = activeLasso ? activeLasso.length : 0;
-  }, [lassoPoints, fslPoints, objects]);
+  }, [lassoPoints, fslPoints, objects, activeLayerId]);
 
   const applyLassoTransformToAllFrames = (type: string, value: number) => {
     const activeLasso = (lassoPoints && lassoPoints.length >= 3) ? lassoPoints : (fslPoints && fslPoints.length >= 3 ? fslPoints : null);
