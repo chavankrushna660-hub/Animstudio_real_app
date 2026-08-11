@@ -1262,7 +1262,7 @@ export default function App() {
       if (isDirtyRef.current && oldFrameIndex >= 0 && oldFrameIndex < currentFrames.length) {
         setFrames(prev => {
           if (!prev[oldFrameIndex]) return prev;
-          const currentFrameObjectsInState = prev[oldFrameIndex].objects || {};
+          const currentFrameObjectsInState = prev[oldFrameIndex].objects || (prev[oldFrameIndex] as any).objectData || {};
           if (JSON.stringify(currentFrameObjectsInState) !== currentObjectsStr) {
             const updated = [...prev];
             updated[oldFrameIndex] = {
@@ -1281,51 +1281,39 @@ export default function App() {
 
       // Now fetch and load target frame
       const targetFrame = currentFrames[currentFrameIndex];
-      if (targetFrame) {
-        const parsed = JSON.parse(JSON.stringify(targetFrame.objects || {}));
-        const parsedStr = JSON.stringify(parsed);
+      let loadedObjects: { [id: string]: VectorObject } = {};
 
-        lastSyncedObjectsRef.current = parsedStr;
-        objectsRef.current = parsed;
-        setObjects(parsed);
-        isDirtyRef.current = false;
-        return;
+      if (targetFrame && targetFrame.objects && Object.keys(targetFrame.objects).length > 0) {
+        // Load target frame's exact recorded objects state!
+        loadedObjects = JSON.parse(JSON.stringify(targetFrame.objects));
       } else if (currentFrameIndex > 0) {
-        // Fallback: copy from previous frame if the current frame is empty or undefined
+        // Fallback: inherit objects from previous frame if target frame is new/empty
         const prevFrame = currentFrames[currentFrameIndex - 1];
-        if (prevFrame && prevFrame.objects && Object.keys(prevFrame.objects).length > 0) {
-          const copiedObjects = JSON.parse(JSON.stringify(prevFrame.objects));
-          const copiedStr = JSON.stringify(copiedObjects);
-
-          lastSyncedObjectsRef.current = copiedStr;
-          objectsRef.current = copiedObjects;
-          setObjects(copiedObjects);
-          isDirtyRef.current = false;
-
+        const prevObjs = prevFrame ? (prevFrame.objects || (prevFrame as any).objectData) : undefined;
+        if (prevObjs && Object.keys(prevObjs).length > 0) {
+          loadedObjects = JSON.parse(JSON.stringify(prevObjs));
           setFrames(prev => {
             if (!prev[currentFrameIndex]) return prev;
             const updated = [...prev];
             updated[currentFrameIndex] = {
               ...updated[currentFrameIndex],
-              objects: copiedObjects
+              objects: JSON.parse(JSON.stringify(prevObjs))
             };
             return updated;
           });
-          return;
         } else {
-          lastSyncedObjectsRef.current = '{}';
-          objectsRef.current = {};
-          setObjects({});
-          isDirtyRef.current = false;
-          return;
+          loadedObjects = JSON.parse(JSON.stringify(currentObjects));
         }
       } else {
-        lastSyncedObjectsRef.current = '{}';
-        objectsRef.current = {};
-        setObjects({});
-        isDirtyRef.current = false;
-        return;
+        loadedObjects = JSON.parse(JSON.stringify(currentObjects));
       }
+
+      const parsedStr = JSON.stringify(loadedObjects);
+      lastSyncedObjectsRef.current = parsedStr;
+      objectsRef.current = loadedObjects;
+      setObjects(loadedObjects);
+      isDirtyRef.current = false;
+      return;
     } else {
       // 2. Otherwise, we are on the same frame, so sync any changes in 'objects' back to 'frames'
       const currentObjectsStr = JSON.stringify(objects);
@@ -1345,57 +1333,40 @@ export default function App() {
           
           setFrames(prev => {
             if (!prev[currentFrameIndex]) return prev;
-            const currentFrameObjectsInState = prev[currentFrameIndex].objects || {};
-            
-            const currentKeys = Object.keys(currentObjects);
-            const savedKeys = Object.keys(currentFrameObjectsInState);
-            
-            const addedKeys = currentKeys.filter(k => !savedKeys.includes(k));
-            const deletedKeys = savedKeys.filter(k => !currentKeys.includes(k));
-            
-            if (addedKeys.length > 0 || deletedKeys.length > 0 || 
-                JSON.stringify(currentFrameObjectsInState) !== checkStr) {
-              
-              if (addedKeys.length === 0 && deletedKeys.length === 0) {
-                const updated = [...prev];
-                updated[currentFrameIndex] = {
-                  ...updated[currentFrameIndex],
-                  objects: JSON.parse(checkStr)
-                };
-                return updated;
-              }
 
-              const updated = prev.map((f, idx) => {
-                const frameObjects = JSON.parse(JSON.stringify(f.objects || {})); // Deep clone to prevent direct state mutation!
-                
-                // Delete deleted objects from all frames
-                deletedKeys.forEach(k => {
-                  delete frameObjects[k];
-                });
-                
-                // Sync new objects to all frames
-                addedKeys.forEach(k => {
-                  if (currentObjects[k] && !frameObjects[k]) {
-                    frameObjects[k] = JSON.parse(JSON.stringify(currentObjects[k]));
-                  }
-                });
+            const newCurrentFrameObjects = JSON.parse(checkStr);
+            const oldCurrentFrameObjects = prev[currentFrameIndex].objects || {};
 
+            // Check if brand-new objects were created on this frame
+            const createdKeys = Object.keys(newCurrentFrameObjects).filter(k => !(k in oldCurrentFrameObjects));
+
+            if (createdKeys.length > 0) {
+              // Propagate BRAND-NEW objects forward to future frames that don't have them yet
+              return prev.map((f, idx) => {
                 if (idx === currentFrameIndex) {
-                  return {
-                    ...f,
-                    objects: JSON.parse(checkStr)
-                  };
-                } else {
-                  return {
-                    ...f,
-                    objects: frameObjects
-                  };
+                  return { ...f, objects: newCurrentFrameObjects };
+                } else if (idx > currentFrameIndex) {
+                  const fObjects = JSON.parse(JSON.stringify(f.objects || (f as any).objectData || {}));
+                  let changed = false;
+                  createdKeys.forEach(k => {
+                    if (!fObjects[k]) {
+                      fObjects[k] = JSON.parse(JSON.stringify(newCurrentFrameObjects[k]));
+                      changed = true;
+                    }
+                  });
+                  return changed ? { ...f, objects: fObjects } : f;
                 }
+                return f;
               });
-              
+            } else {
+              // Existing objects updated or deleted -> update ONLY currentFrameIndex so recorded changes stay per-frame!
+              const updated = [...prev];
+              updated[currentFrameIndex] = {
+                ...updated[currentFrameIndex],
+                objects: newCurrentFrameObjects
+              };
               return updated;
             }
-            return prev;
           });
         }
       }, 150);

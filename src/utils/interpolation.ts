@@ -398,9 +398,11 @@ export const getInterpolatedObjects = (
 
     // Collect all frames where this object exists
     const objectFrames: { index: number; obj: VectorObject }[] = [];
-    frames.forEach(frm => {
-      if (frm.objects && frm.objects[objId]) {
-        objectFrames.push({ index: frm.index, obj: frm.objects[objId] as any });
+    frames.forEach((frm, fIndex) => {
+      const fObjects = frm.objects || (frm as any).objectData;
+      const fIdx = frm.index !== undefined ? frm.index : ((frm as any).id ?? fIndex);
+      if (fObjects && fObjects[objId]) {
+        objectFrames.push({ index: fIdx, obj: fObjects[objId] as any });
       }
     });
 
