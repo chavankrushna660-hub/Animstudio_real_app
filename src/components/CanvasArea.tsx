@@ -1646,8 +1646,6 @@ export default function CanvasArea({
     }
   }, [registerInverseDeformer]);
 
-  const effectiveSelectedObjectId = (isRecording || isPlaying) ? null : selectedObjectId;
-
   const activeObjects: { [id: string]: VectorObject } = React.useMemo(() => {
     if (autoTween) {
       return getInterpolatedObjects(frames, currentFrameIndex, rawObjects);
@@ -1656,6 +1654,20 @@ export default function CanvasArea({
   }, [autoTween, frames, currentFrameIndex, rawObjects]);
 
   const objects: { [id: string]: VectorObject } = activeObjects;
+
+  const targetDrawingId = React.useMemo(() => {
+    if (!selectedObjectId || !objects[selectedObjectId]) return null;
+    const rawObj = objects[selectedObjectId];
+    if (rawObj.type === '360_container' && rawObj.views360 && rawObj.views360.length > 0) {
+      const activeView = findClosestView360(rawObj.views360, rawObj.currentAngle360 ?? 0);
+      if (activeView && activeView.drawingId && objects[activeView.drawingId]) {
+        return activeView.drawingId;
+      }
+    }
+    return selectedObjectId;
+  }, [selectedObjectId, objects]);
+
+  const effectiveSelectedObjectId = (isRecording || isPlaying) ? null : targetDrawingId;
 
   const dragRafRef = useRef<number | null>(null);
   const pendingCoordsRef = useRef<{ x: number; y: number } | null>(null);
@@ -2469,19 +2481,22 @@ export default function CanvasArea({
 
   // Get active object or hit object or create default drawing so tools work immediately
   const getOrPrepareActiveObject = (coords: Point): VectorObject => {
-    if (selectedObjectId && objects[selectedObjectId] && !objects[selectedObjectId].isHidden && !objects[selectedObjectId].isLocked) {
-      return objects[selectedObjectId];
+    const targetInfo = getActiveTargetObjectInfo(selectedObjectId);
+    if (targetInfo && targetInfo.activeObj && !targetInfo.activeObj.isHidden && !targetInfo.activeObj.isLocked) {
+      return targetInfo.activeObj;
     }
     const hit = performHitTest(coords);
     if (hit) {
       setSelectedObjectId(hit.id);
-      return hit;
+      const hitInfo = getActiveTargetObjectInfo(hit.id);
+      return hitInfo ? hitInfo.activeObj : hit;
     }
     const visibleObjs = Object.values(objects).filter(o => !o.isHidden && !o.isLocked);
     if (visibleObjs.length > 0) {
       const lastObj = visibleObjs[visibleObjs.length - 1];
       setSelectedObjectId(lastObj.id);
-      return lastObj;
+      const lastInfo = getActiveTargetObjectInfo(lastObj.id);
+      return lastInfo ? lastInfo.activeObj : lastObj;
     }
     // Create default drawing on blank canvas
     const newId = `obj_drawing_${Date.now()}`;
@@ -4400,13 +4415,15 @@ export default function CanvasArea({
 
     // directRigBone dragging handler removed.
 
-    if (dragMode === 'meshGridPoint' && selectedObjectId && draggedMeshPointIndex !== null) {
-      const obj = objects[selectedObjectId];
+    const activeTargetId = effectiveSelectedObjectId || selectedObjectId;
+
+    if (dragMode === 'meshGridPoint' && activeTargetId && draggedMeshPointIndex !== null) {
+      const obj = objects[activeTargetId];
       if (obj && obj.meshState && obj.meshState.active) {
         const localPos = worldToLocal(coords, obj.transform, obj.pivots[0]);
         setObjects(prev => {
-          if (!prev[selectedObjectId]) return prev;
-          const originalPoints = prev[selectedObjectId].meshState!.points;
+          if (!activeTargetId || !prev[activeTargetId]) return prev;
+          const originalPoints = prev[activeTargetId].meshState!.points;
           const updatedMeshStatePoints = originalPoints.map(p => ({ ...p }));
           
           const targetPoint = updatedMeshStatePoints[draggedMeshPointIndex];
@@ -4419,8 +4436,8 @@ export default function CanvasArea({
             targetPoint.currentY = Number(localPos.y.toFixed(2));
             
             // Soft-selection Node mode with falloff
-            const editMode = prev[selectedObjectId].meshState!.editMode || 'node';
-            const falloffRadius = prev[selectedObjectId].meshState!.falloffRadius || 0;
+            const editMode = prev[activeTargetId].meshState!.editMode || 'node';
+            const falloffRadius = prev[activeTargetId].meshState!.falloffRadius || 0;
             if (editMode === 'node' && falloffRadius > 0) {
               const origX = targetPoint.originalX;
               const origY = targetPoint.originalY;
@@ -4438,8 +4455,8 @@ export default function CanvasArea({
             }
             
             // Symmetry Active Mirroring
-            const symmetryActive = prev[selectedObjectId].meshState!.symmetryActive;
-            const symmetryAxis = prev[selectedObjectId].meshState!.symmetryAxis || 'horizontal';
+            const symmetryActive = prev[activeTargetId].meshState!.symmetryActive;
+            const symmetryAxis = prev[activeTargetId].meshState!.symmetryAxis || 'horizontal';
             if (symmetryActive) {
               // Estimate center of mesh points
               let sumOrigX = 0, sumOrigY = 0;
@@ -4479,10 +4496,10 @@ export default function CanvasArea({
           
           return {
             ...prev,
-            [selectedObjectId]: {
-              ...prev[selectedObjectId],
+            [activeTargetId]: {
+              ...prev[activeTargetId],
               meshState: {
-                ...prev[selectedObjectId].meshState!,
+                ...prev[activeTargetId].meshState!,
                 points: updatedMeshStatePoints
               }
             }
@@ -4492,14 +4509,14 @@ export default function CanvasArea({
       return;
     }
 
-    if (dragMode === 'latticePoint' && selectedObjectId && draggedMeshPointIndex !== null) {
-      const obj = objects[selectedObjectId];
+    if (dragMode === 'latticePoint' && activeTargetId && draggedMeshPointIndex !== null) {
+      const obj = objects[activeTargetId];
       if (obj && obj.meshState && obj.meshState.latticePoints) {
         const localPos = worldToLocal(coords, obj.transform, obj.pivots[0]);
         setObjects(prev => {
-          if (!prev[selectedObjectId] || !prev[selectedObjectId].meshState?.latticePoints) return prev;
+          if (!activeTargetId || !prev[activeTargetId] || !prev[activeTargetId].meshState?.latticePoints) return prev;
           
-          const updatedLatticePoints = prev[selectedObjectId].meshState!.latticePoints!.map(p => ({ ...p }));
+          const updatedLatticePoints = prev[activeTargetId].meshState!.latticePoints!.map(p => ({ ...p }));
           const targetLpt = updatedLatticePoints[draggedMeshPointIndex];
           if (!targetLpt) return prev;
           
@@ -4511,7 +4528,7 @@ export default function CanvasArea({
           targetLpt.y = Number(localPos.y.toFixed(2));
           
           // Deform underlying mesh points using Inverse Distance Weighting (IDW) from all lattice points
-          const updatedMeshPoints = prev[selectedObjectId].meshState!.points.map(mpt => {
+          const updatedMeshPoints = prev[activeTargetId].meshState!.points.map(mpt => {
             let totalWeight = 0;
             let meshDx = 0;
             let meshDy = 0;
@@ -4554,10 +4571,10 @@ export default function CanvasArea({
           
           return {
             ...prev,
-            [selectedObjectId]: {
-              ...prev[selectedObjectId],
+            [activeTargetId]: {
+              ...prev[activeTargetId],
               meshState: {
-                ...prev[selectedObjectId].meshState!,
+                ...prev[activeTargetId].meshState!,
                 latticePoints: updatedLatticePoints,
                 points: updatedMeshPoints
               }
@@ -4568,7 +4585,7 @@ export default function CanvasArea({
       return;
     }
 
-    if (dragMode === 'vdf-node' && selectedObjectId && draggedMeshPointIndex !== null && draggedMeshPointIndex !== undefined) {
+    if (dragMode === 'vdf-node' && activeTargetId && draggedMeshPointIndex !== null && draggedMeshPointIndex !== undefined) {
       pendingCoordsRef.current = coords;
       if (!dragRafRef.current) {
         dragRafRef.current = requestAnimationFrame(() => {
@@ -4577,7 +4594,8 @@ export default function CanvasArea({
           if (!latestCoords) return;
 
           setObjects(prev => {
-            const targetObj = prev[selectedObjectId];
+            if (!activeTargetId || !prev[activeTargetId]) return prev;
+            const targetObj = prev[activeTargetId];
             if (!targetObj) return prev;
             const vdfState = targetObj.customVectorDeformState;
             if (!vdfState || !vdfState.nodes || !vdfState.nodes[draggedMeshPointIndex]) return prev;
@@ -4636,7 +4654,7 @@ export default function CanvasArea({
 
             return {
               ...prev,
-              [selectedObjectId]: {
+              [activeTargetId]: {
                 ...targetObj,
                 points: updatedPoints,
                 subPaths: updatedSubPaths,
@@ -4921,13 +4939,13 @@ export default function CanvasArea({
       return;
     }
 
-    if (dragMode === 'puppetPin' && selectedObjectId && draggedMeshPointIndex !== null) {
-      const obj = objects[selectedObjectId];
+    if (dragMode === 'puppetPin' && activeTargetId && draggedMeshPointIndex !== null) {
+      const obj = objects[activeTargetId];
       if (obj) {
         const localPos = worldToLocal(coords, obj.transform, obj.pivots[0]);
         setObjects(prev => {
-          if (!prev[selectedObjectId]) return prev;
-          const updatedPins = [...(prev[selectedObjectId].pins || [])];
+          if (!activeTargetId || !prev[activeTargetId]) return prev;
+          const updatedPins = [...(prev[activeTargetId].pins || [])];
           if (updatedPins[draggedMeshPointIndex]) {
             updatedPins[draggedMeshPointIndex] = {
               ...updatedPins[draggedMeshPointIndex],
@@ -4937,8 +4955,8 @@ export default function CanvasArea({
           }
           return {
             ...prev,
-            [selectedObjectId]: {
-              ...prev[selectedObjectId],
+            [activeTargetId]: {
+              ...prev[activeTargetId],
               pins: updatedPins
             }
           };
@@ -4947,13 +4965,13 @@ export default function CanvasArea({
       return;
     }
 
-    if (dragMode === 'lassoControlPoint' && selectedObjectId && draggedMeshPointIndex !== null) {
-      const obj = objects[selectedObjectId];
+    if (dragMode === 'lassoControlPoint' && activeTargetId && draggedMeshPointIndex !== null) {
+      const obj = objects[activeTargetId];
       if (obj && obj.lassoControlPoints) {
         const localPos = worldToLocal(coords, obj.transform, obj.pivots[0]);
         setObjects(prev => {
-          if (!prev[selectedObjectId]) return prev;
-          const updatedLcp = [...(prev[selectedObjectId].lassoControlPoints || [])];
+          if (!activeTargetId || !prev[activeTargetId]) return prev;
+          const updatedLcp = [...(prev[activeTargetId].lassoControlPoints || [])];
           if (updatedLcp[draggedMeshPointIndex]) {
             updatedLcp[draggedMeshPointIndex] = {
               ...updatedLcp[draggedMeshPointIndex],
@@ -4963,8 +4981,8 @@ export default function CanvasArea({
           }
           return {
             ...prev,
-            [selectedObjectId]: {
-              ...prev[selectedObjectId],
+            [activeTargetId]: {
+              ...prev[activeTargetId],
               lassoControlPoints: updatedLcp
             }
           };
@@ -4973,21 +4991,21 @@ export default function CanvasArea({
       return;
     }
 
-    if (dragMode === 'paintColor' && selectedObjectId) {
-      const obj = objects[selectedObjectId];
+    if (dragMode === 'paintColor' && activeTargetId) {
+      const obj = objects[activeTargetId];
       if (obj && obj.smartMeshColor) {
         paintColorAt(coords, obj);
       }
       return;
     }
 
-    if (dragMode === 'smartWarpPin' && selectedObjectId && draggedMeshPointIndex !== null) {
-      const obj = objects[selectedObjectId];
+    if (dragMode === 'smartWarpPin' && activeTargetId && draggedMeshPointIndex !== null) {
+      const obj = objects[activeTargetId];
       if (obj && obj.smartWarp) {
         const localPos = worldToLocal(coords, obj.transform, obj.pivots[0]);
         setObjects(prev => {
-          if (!prev[selectedObjectId]) return prev;
-          const sw = prev[selectedObjectId].smartWarp;
+          if (!activeTargetId || !prev[activeTargetId]) return prev;
+          const sw = prev[activeTargetId].smartWarp;
           if (!sw) return prev;
           const updatedPins = [...sw.pins];
           if (updatedPins[draggedMeshPointIndex]) {
@@ -4999,8 +5017,8 @@ export default function CanvasArea({
           }
           return {
             ...prev,
-            [selectedObjectId]: {
-              ...prev[selectedObjectId],
+            [activeTargetId]: {
+              ...prev[activeTargetId],
               smartWarp: {
                 ...sw,
                 pins: updatedPins
@@ -5012,13 +5030,13 @@ export default function CanvasArea({
       return;
     }
 
-    if (dragMode === ('cagePoint' as any) && selectedObjectId && draggedMeshPointIndex !== null) {
-      const obj = objects[selectedObjectId];
+    if (dragMode === ('cagePoint' as any) && activeTargetId && draggedMeshPointIndex !== null) {
+      const obj = objects[activeTargetId];
       if (obj && obj.cageState) {
         const localPos = worldToLocal(coords, obj.transform, obj.pivots[0]);
         setObjects(prev => {
-          if (!prev[selectedObjectId] || !prev[selectedObjectId].cageState) return prev;
-          const cs = prev[selectedObjectId].cageState;
+          if (!activeTargetId || !prev[activeTargetId] || !prev[activeTargetId].cageState) return prev;
+          const cs = prev[activeTargetId].cageState;
           const updatedPoints = [...cs.points];
           if (updatedPoints[draggedMeshPointIndex]) {
             updatedPoints[draggedMeshPointIndex] = {
@@ -5029,8 +5047,8 @@ export default function CanvasArea({
           }
           return {
             ...prev,
-            [selectedObjectId]: {
-              ...prev[selectedObjectId],
+            [activeTargetId]: {
+              ...prev[activeTargetId],
               cageState: {
                 ...cs,
                 points: updatedPoints

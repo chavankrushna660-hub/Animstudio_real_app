@@ -46,7 +46,10 @@ import {
   GitFork,
   Activity,
   GitCommit,
-  RotateCcw
+  RotateCcw,
+  Wand2,
+  Grid,
+  Edit3
 } from 'lucide-react';
 import { calculateCustomVectorDeformedPoints, calculateRigidLinearDeformedPoints } from '../utils/vectorDeform';
 import { VectorObject, Bone, Layer, Pivot, Transform, Point, Frame, RealismSettings, SmartMeshColorState, SmartWarpState, ColorMeshPoint, ColorMeshCell, BrushSettings, LiquifyBrushSettings, SubExtrusion, CustomVectorDeformNode } from '../types';
@@ -6645,6 +6648,87 @@ export default function RightPanel({
                               </div>
                             );
                           })}
+                        </div>
+
+                        {/* Active View Quick Deformation Tools */}
+                        <div className="bg-neutral-900/90 p-2.5 rounded-xl border border-amber-500/30 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase text-amber-400 flex items-center gap-1">
+                              <Wand2 className="w-3.5 h-3.5" />
+                              Active View Tools
+                            </span>
+                            <span className="text-[9px] text-amber-200/80 font-mono">
+                              {findClosestView360(selectedObject.views360 || [], selectedObject.currentAngle360 ?? 0)?.name || 'Active View'}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-1.5 pt-0.5">
+                            <button
+                              type="button"
+                              onClick={() => setActiveTool('MSH')}
+                              className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                                activeTool === 'MSH' ? 'bg-amber-500 text-black border-amber-400 font-extrabold shadow-sm' : 'bg-neutral-950 border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700'
+                              }`}
+                              title="Apply Mesh Deformation to active view"
+                            >
+                              <Grid className="w-3 h-3 text-amber-400" />
+                              Mesh
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setActiveTool('CAG')}
+                              className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                                activeTool === 'CAG' ? 'bg-amber-500 text-black border-amber-400 font-extrabold shadow-sm' : 'bg-neutral-950 border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700'
+                              }`}
+                              title="Apply Cage Deformation to active view"
+                            >
+                              <Box className="w-3 h-3 text-amber-400" />
+                              Cage
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setActiveTool('VPR')}
+                              className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                                activeTool === 'VPR' ? 'bg-amber-500 text-black border-amber-400 font-extrabold shadow-sm' : 'bg-neutral-950 border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700'
+                              }`}
+                              title="Apply Vector Deform (VPR) to active view"
+                            >
+                              <Maximize2 className="w-3 h-3 text-amber-400" />
+                              VPR
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setActiveTool('VECT')}
+                              className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                                activeTool === 'VECT' ? 'bg-amber-500 text-black border-amber-400 font-extrabold shadow-sm' : 'bg-neutral-950 border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700'
+                              }`}
+                              title="Edit Anchor Points of active view"
+                            >
+                              <Edit3 className="w-3 h-3 text-amber-400" />
+                              Reshape
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setActiveTool('FLL')}
+                              className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                                activeTool === 'FLL' ? 'bg-amber-500 text-black border-amber-400 font-extrabold shadow-sm' : 'bg-neutral-950 border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700'
+                              }`}
+                              title="Fill active view"
+                            >
+                              <Palette className="w-3 h-3 text-amber-400" />
+                              Fill
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setActiveTool('PIN')}
+                              className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                                activeTool === 'PIN' ? 'bg-amber-500 text-black border-amber-400 font-extrabold shadow-sm' : 'bg-neutral-950 border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700'
+                              }`}
+                              title="Add Puppet Pins to active view"
+                            >
+                              <MapPin className="w-3 h-3 text-amber-400" />
+                              Pins
+                            </button>
+                          </div>
                         </div>
 
                         {/* Add View Form */}
