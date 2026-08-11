@@ -2263,10 +2263,24 @@ export default function CanvasArea({
   };
 
   // Drawing state
-  const [isDrawing, setIsPlayingState] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
   const [strokePoints, setStrokePoints] = useState<Point[]>([]);
   const strokePointsRef = useRef<Point[]>([]);
   const [isDrawingLasso, setIsDrawingLasso] = useState(false);
+
+  // Reset ephemeral tool states whenever activeTool changes
+  useEffect(() => {
+    setIsDrawing(false);
+    setDragMode('none');
+    setKnifePath([]);
+    setPenPoints([]);
+    setBoneStartPoint(null);
+    setBoneStartObject(null);
+    setBoneStartPivot(null);
+    setSnappedPivot(null);
+    strokePointsRef.current = [];
+    setStrokePoints([]);
+  }, [activeTool]);
   
   // Transform & drag gesture state
   const [dragMode, setDragMode] = useState<'none' | 'move' | 'rotate' | 'scale' | 'pivot' | 'pin' | 'meshPoint' | 'meshGridPoint' | 'puppetPin' | 'lassoControlPoint' | 'directRigBone' | 'zoom' | 'pan' | 'paintColor' | 'smartWarpPin' | 'splineHandle' | 'latticePoint' | 'drag-lasso-selection-point' | 'extrudeBranchPoint'>('none');
@@ -2981,14 +2995,14 @@ export default function CanvasArea({
 
     // 6. Shapes Tool logic
     if (activeTool === 'SHP') {
-      setIsPlayingState(true);
+      setIsDrawing(true);
       setDragStartPoint(coords);
       return;
     }
 
     // 7. Eraser Tool logic
     if (activeTool === 'ERS') {
-      setIsPlayingState(true);
+      setIsDrawing(true);
       erasePointsAt(coords);
       return;
     }
@@ -3595,7 +3609,7 @@ export default function CanvasArea({
       if (selectedObjectId && objects[selectedObjectId]) {
         const obj = objects[selectedObjectId];
         if (obj.smartMeshColor) {
-          setIsPlayingState(true); // set flag to indicate active painting
+          setIsDrawing(true); // set flag to indicate active painting
           setDragMode('paintColor');
           // Paint immediately at first click
           paintColorAt(coords, obj);
@@ -4262,7 +4276,7 @@ export default function CanvasArea({
 
     // 11. Vector brush drawing logic
     if (activeTool === 'BRS') {
-      setIsPlayingState(true);
+      setIsDrawing(true);
       const startPt = createRealismPoint(coords, null, realismSettings);
       strokePointsRef.current = [startPt];
       setStrokePoints([startPt]);
@@ -5816,6 +5830,7 @@ export default function CanvasArea({
       } else {
         setDragMode('none');
       }
+      setIsDrawing(false);
       historyPush();
       return;
     }
@@ -5832,11 +5847,13 @@ export default function CanvasArea({
       } else {
         setDragMode('none');
       }
+      setIsDrawing(false);
       return;
     }
 
     if (dragMode === ('rotate3D' as any)) {
       setDragMode('none');
+      setIsDrawing(false);
       historyPush();
       return;
     }
@@ -6108,6 +6125,7 @@ export default function CanvasArea({
       pendingCoordsRef.current = null;
       setDragMode('none');
       setDraggedMeshPointIndex(null);
+      setIsDrawing(false);
       historyPush();
       return;
     }
@@ -6247,7 +6265,7 @@ export default function CanvasArea({
       setDraggedSplineIndex(null);
       setDraggedSplinePart(null);
       setDraggedTwistIndex(null);
-      setIsPlayingState(false);
+      setIsDrawing(false);
       historyPush();
     }
 
@@ -6379,7 +6397,7 @@ export default function CanvasArea({
       strokeMoveAffectedSubPointsRef.current = null;
     }
 
-    setIsPlayingState(false);
+    setIsDrawing(false);
     setDragMode('none');
     setDraggedDirectRigBoneId(null);
     strokePointsRef.current = [];
