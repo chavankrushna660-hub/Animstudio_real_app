@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" fill="#E5232A" />
+  <path
+    fill="#FFFFFF"
+    fill-rule="evenodd"
+    d="
+      M 256 836
+      L 360 836
+      L 420 651
+      L 549 629
+      L 583 829
+      L 718 829
+      L 655 633
+      L 770 611
+      L 736 474
+      L 625 496
+      L 551 222
+      L 488 188
+      L 478 220
+      L 445 207
+      L 422 248
+      L 337 555
+      L 272 566
+      L 254 681
+      L 312 670
+      L 256 836 Z
+
+      M 479 370
+      L 518 521
+      L 411 540
+      Z
+    "
+  />
+</svg>

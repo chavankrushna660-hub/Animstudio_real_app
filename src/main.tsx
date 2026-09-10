@@ -2,17 +2,19 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
-import { runSecurityShield } from './utils/securityGuard';
-import { ErrorBoundary } from './components/ErrorBoundary';
 
-// Launch strict client security protection shield immediately on system boot
-runSecurityShield();
+// Register Service Worker for PWA (Progressive Web App) Installability & Offline Cache
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.log('SW registration note:', err);
+    });
+  });
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
+    <App />
   </StrictMode>,
 );
 
