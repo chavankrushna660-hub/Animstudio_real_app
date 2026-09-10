@@ -38,6 +38,9 @@ import {
   Link,
   Unlink,
   Play,
+  Clock,
+  Pause,
+  Square,
   Zap,
   Info,
   Box,
@@ -198,6 +201,17 @@ interface RightPanelProps {
   autoFramesActive?: boolean;
   onOpenAutoFrames?: () => void;
   autoFramesStatus?: 'idle' | 'countdown' | 'recording' | 'paused';
+  autoFramesDelay?: number;
+  setAutoFramesDelay?: (s: number) => void;
+  autoFramesOnlySelected?: boolean;
+  setAutoFramesOnlySelected?: (val: boolean) => void;
+  autoFramesCountdown?: number;
+  autoFramesTimeRemaining?: number;
+  onStartAutoFrames?: () => void;
+  onPauseAutoFrames?: () => void;
+  onResumeAutoFrames?: () => void;
+  onStopAutoFrames?: () => void;
+  totalFrames?: number;
 }
 
 const isChildInsideParent = (
@@ -307,6 +321,17 @@ function RightPanel({
   autoFramesActive,
   onOpenAutoFrames,
   autoFramesStatus,
+  autoFramesDelay = 3,
+  setAutoFramesDelay,
+  autoFramesOnlySelected = true,
+  setAutoFramesOnlySelected,
+  autoFramesCountdown = 3,
+  autoFramesTimeRemaining = 3,
+  onStartAutoFrames,
+  onPauseAutoFrames,
+  onResumeAutoFrames,
+  onStopAutoFrames,
+  totalFrames = 1,
 }: RightPanelProps) {
   // Active lasso selection points
   const activeLasso = (lassoPoints && lassoPoints.length >= 3) ? lassoPoints : penLassoPoints;
@@ -3158,37 +3183,37 @@ function RightPanel({
       <button
         id="right-panel-toggle-btn"
         onClick={() => setOpen(!open)}
-        className="pointer-events-auto absolute -left-8 sm:-left-9 top-1/2 -translate-y-1/2 w-8 sm:w-9 h-24 bg-neutral-850 hover:bg-amber-500 border-y border-l border-neutral-700 hover:border-amber-400 rounded-l-2xl flex flex-col items-center justify-center text-amber-400 hover:text-neutral-950 transition-all cursor-pointer z-50 shadow-2xl shadow-black/80 group"
+        className="pointer-events-auto absolute -left-8 sm:-left-9 top-1/2 -translate-y-1/2 w-8 sm:w-9 h-26 bg-neutral-850 hover:bg-amber-500 border-y border-l border-neutral-700 hover:border-amber-400 rounded-l-2xl flex flex-col items-center justify-center text-amber-400 hover:text-neutral-950 transition-all cursor-pointer z-50 shadow-2xl shadow-black/80 group"
         title={open ? "Close Properties Panel" : "Open Properties Panel"}
         aria-label="Toggle Properties Panel"
       >
         {open ? (
-          <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+          <ChevronRight className="w-5 h-5 stroke-[2.5] transition-transform group-hover:translate-x-0.5" />
         ) : (
-          <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
+          <ChevronLeft className="w-5 h-5 stroke-[2.5] transition-transform group-hover:-translate-x-0.5" />
         )}
-        <span className="text-[7.5px] font-black uppercase tracking-tighter mt-1 opacity-80 group-hover:opacity-100 [writing-mode:vertical-lr] rotate-180">
+        <span className="text-[9px] font-black uppercase tracking-wider mt-1 opacity-90 group-hover:opacity-100 [writing-mode:vertical-lr] rotate-180">
           {open ? 'CLOSE' : 'PROPS'}
         </span>
       </button>
 
-      <div className={`pointer-events-auto w-full h-full bg-neutral-900/95 backdrop-blur-md border-l border-neutral-800 flex flex-col overflow-hidden box-border min-w-0 ${
+      <div className={`pointer-events-auto w-full h-full bg-neutral-900/95 backdrop-blur-md border-l-2 border-neutral-800 flex flex-col overflow-hidden box-border min-w-0 ${
         open ? 'w-80' : 'w-0 border-l-0'
       }`}>
         {open && (
         <div className="flex-1 flex flex-col h-full overflow-hidden select-none font-semibold w-full box-border min-w-0">
           {/* Header */}
-          <div className="h-14 border-b border-neutral-800 flex items-center justify-between px-3.5 shrink-0 w-full box-border min-w-0">
-            <span className="text-xs uppercase tracking-widest font-black text-neutral-400 flex items-center gap-1.5 truncate min-w-0">
-              <Settings className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <div className="h-16 border-b-2 border-neutral-800 flex items-center justify-between px-4 shrink-0 w-full box-border min-w-0">
+            <span className="text-sm uppercase tracking-widest font-black text-neutral-100 flex items-center gap-2 truncate min-w-0">
+              <Settings className="w-5 h-5 text-amber-500 shrink-0 stroke-[2.4]" />
               PROPERTIES PANEL
             </span>
             <button
               onClick={() => setOpen(false)}
-              className="p-1.5 rounded-lg border border-neutral-800 hover:border-neutral-700 hover:bg-neutral-850 text-neutral-400 hover:text-rose-400 transition-all lg:hidden shrink-0"
+              className="p-2 rounded-xl border-2 border-neutral-800 hover:border-neutral-700 hover:bg-neutral-850 text-neutral-400 hover:text-rose-400 transition-all lg:hidden shrink-0 cursor-pointer"
               title="Close Sidebar"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-5 h-5 stroke-[2.4]" />
             </button>
           </div>
 
@@ -3255,37 +3280,231 @@ function RightPanel({
               )}
             </div>
 
-            {/* AUTO FRAMES (SPEED ANIMATION) PANEL TRIGGER */}
-            <div className="bg-neutral-950/90 p-3 rounded-2xl border border-amber-500/30 shadow-xl min-w-0 w-full max-w-full box-border overflow-hidden space-y-2">
+            {/* AUTO FRAMES (SPEED ANIMATION) PANEL & INLINE HUD */}
+            <div className={`p-4 rounded-2xl transition-all min-w-0 w-full max-w-full box-border overflow-hidden space-y-3.5 border-2 ${
+              autoFramesActive || autoFramesStatus !== 'idle'
+                ? 'bg-neutral-900/95 border-amber-400 shadow-[0_0_28px_rgba(245,158,11,0.3)] ring-2 ring-amber-400/40'
+                : 'bg-neutral-950/90 border-neutral-800 hover:border-amber-500/50'
+            }`}>
+              {/* Header */}
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5 font-mono">
-                  <Play className="w-3.5 h-3.5 text-amber-400" />
-                  Auto Frames
-                </span>
-                <span className={`px-2 py-0.5 text-[9px] font-black rounded-full border ${
-                  autoFramesStatus === 'recording'
-                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
-                    : autoFramesStatus === 'countdown'
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                    : autoFramesStatus === 'paused'
-                    ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
-                    : 'bg-neutral-800 text-neutral-400 border-neutral-700'
-                }`}>
-                  {autoFramesStatus ? autoFramesStatus.toUpperCase() : 'READY'}
-                </span>
+                <div className="flex items-center gap-2.5">
+                  <div className={`p-2 rounded-xl ${
+                    autoFramesActive || autoFramesStatus !== 'idle'
+                      ? 'bg-amber-500 text-neutral-950'
+                      : 'bg-neutral-800 text-amber-400'
+                  }`}>
+                    <Clock className="w-5 h-5 stroke-[2.5]" />
+                  </div>
+                  <span className="text-sm font-black uppercase tracking-wider text-amber-300 font-mono">
+                    Auto Frames
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`px-3 py-1 text-xs font-black rounded-xl border-2 ${
+                    autoFramesStatus === 'recording'
+                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/60 animate-pulse'
+                      : autoFramesStatus === 'countdown'
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/60'
+                      : autoFramesStatus === 'paused'
+                      ? 'bg-blue-500/20 text-blue-300 border-blue-500/60'
+                      : autoFramesActive
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/60'
+                      : 'bg-neutral-800 text-neutral-300 border-neutral-700'
+                  }`}>
+                    {autoFramesStatus !== 'idle' ? autoFramesStatus.toUpperCase() : autoFramesActive ? 'ACTIVE' : 'IDLE'}
+                  </span>
+                </div>
               </div>
-              <p className="text-[10px] text-neutral-400 font-normal leading-relaxed">
-                Continuous frame duplicator & motion capture. Set interval (2s-15s), countdown, and animate in real-time.
-              </p>
-              {onOpenAutoFrames && (
-                <button
-                  type="button"
-                  onClick={onOpenAutoFrames}
-                  className="w-full py-2 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-95"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  {autoFramesStatus === 'recording' ? 'Open HUD Controls' : 'Open Auto Frames'}
-                </button>
+
+              {/* Collapsed view toggle when inactive and idle */}
+              {!autoFramesActive && autoFramesStatus === 'idle' ? (
+                <div className="space-y-2.5 pt-1">
+                  <p className="text-xs text-neutral-300 font-bold leading-relaxed">
+                    Automatically create frames at timed intervals as you transform drawings on the canvas.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={onOpenAutoFrames}
+                    className="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-xs sm:text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2.5 cursor-pointer shadow-lg active:scale-95 border-2 border-amber-300"
+                  >
+                    <Sparkles className="w-5 h-5 stroke-[2.5]" />
+                    Activate Auto Frames
+                  </button>
+                </div>
+              ) : (
+                /* Full Embedded HUD Controls */
+                <div className="space-y-3.5 pt-1">
+                  {/* Status: COUNTDOWN */}
+                  {autoFramesStatus === 'countdown' && (
+                    <div className="bg-neutral-950 border-2 border-amber-500/50 rounded-2xl p-4 flex flex-col items-center justify-center text-center space-y-2.5">
+                      <span className="text-xs text-amber-400 uppercase tracking-widest font-black">
+                        Starting in
+                      </span>
+                      <div className="text-5xl font-black text-amber-400 font-mono animate-bounce">
+                        {autoFramesCountdown}
+                      </div>
+                      <p className="text-xs text-neutral-300 font-bold">
+                        Grab canvas handles to transform drawing!
+                      </p>
+                      {onStopAutoFrames && (
+                        <button
+                          type="button"
+                          onClick={onStopAutoFrames}
+                          className="mt-1 px-4 py-1.5 text-xs font-black text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 rounded-xl border border-rose-500/30 transition-colors cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Status: RECORDING or PAUSED */}
+                  {(autoFramesStatus === 'recording' || autoFramesStatus === 'paused') && (
+                    <div className="bg-neutral-950 border-2 border-neutral-800 rounded-2xl p-3.5 space-y-3.5">
+                      {/* Next Frame Progress */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs sm:text-sm">
+                          <span className="text-neutral-300 font-black flex items-center gap-2">
+                            {autoFramesStatus === 'recording' ? (
+                              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping inline-block" />
+                            ) : (
+                              <span className="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block" />
+                            )}
+                            {autoFramesStatus === 'recording' ? 'Next frame in:' : 'Paused'}
+                          </span>
+                          <span className="text-amber-400 font-mono font-black text-base">
+                            {autoFramesStatus === 'recording' ? `${autoFramesTimeRemaining}s` : 'PAUSED'}
+                          </span>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div className="w-full h-2.5 bg-neutral-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-amber-500 to-amber-300 transition-all duration-300"
+                            style={{
+                              width: `${Math.max(0, Math.min(100, ((autoFramesDelay - autoFramesTimeRemaining) / autoFramesDelay) * 100))}%`
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Current frame indicator */}
+                      <div className="flex items-center justify-between py-1.5 px-3 rounded-xl bg-neutral-900 border-2 border-neutral-800 text-xs sm:text-sm">
+                        <span className="text-neutral-300 font-bold">Timeline Frame:</span>
+                        <span className="font-mono font-black text-amber-300">
+                          #{currentFrameIndex + 1} / {totalFrames}
+                        </span>
+                      </div>
+
+                      {/* Pause / Resume & Stop Controls */}
+                      <div className="grid grid-cols-2 gap-2.5 pt-1">
+                        {autoFramesStatus === 'recording' ? (
+                          <button
+                            type="button"
+                            onClick={onPauseAutoFrames}
+                            className="py-2.5 px-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-100 text-xs sm:text-sm font-black flex items-center justify-center gap-2 cursor-pointer border-2 border-neutral-700 transition-colors"
+                          >
+                            <Pause className="w-4.5 h-4.5 fill-current stroke-[2.4]" />
+                            Pause
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={onResumeAutoFrames}
+                            className="py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs sm:text-sm font-black flex items-center justify-center gap-2 cursor-pointer border-2 border-amber-300 transition-colors"
+                          >
+                            <Play className="w-4.5 h-4.5 fill-current stroke-[2.4]" />
+                            Resume
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={onStopAutoFrames}
+                          className="py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs sm:text-sm font-black flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm border-2 border-rose-400"
+                        >
+                          <Square className="w-4.5 h-4.5 fill-current stroke-[2.4]" />
+                          Stop
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Status: IDLE (Setup HUD in RightPanel) */}
+                  {autoFramesStatus === 'idle' && (
+                    <div className="space-y-3.5">
+                      {/* Interval Timer Select */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-black uppercase tracking-wider text-neutral-200">
+                            Capture Interval
+                          </label>
+                          <span className="font-mono text-xs sm:text-sm font-black text-amber-400 bg-neutral-950 px-2.5 py-1 rounded-lg border-2 border-neutral-800">
+                            {autoFramesDelay}s
+                          </span>
+                        </div>
+
+                        {/* Quick Presets */}
+                        <div className="grid grid-cols-5 gap-1.5">
+                          {[2, 3, 5, 10, 15].map((sec) => (
+                            <button
+                              key={sec}
+                              type="button"
+                              onClick={() => setAutoFramesDelay?.(sec)}
+                              className={`py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer border-2 ${
+                                autoFramesDelay === sec
+                                  ? 'bg-amber-500 text-neutral-950 shadow-md border-amber-300 scale-105'
+                                  : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700'
+                              }`}
+                            >
+                              {sec}s
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Slider */}
+                        <input
+                          type="range"
+                          min="2"
+                          max="15"
+                          step="1"
+                          value={autoFramesDelay}
+                          onChange={(e) => setAutoFramesDelay?.(Number(e.target.value))}
+                          className="w-full accent-amber-500 cursor-pointer mt-1 h-2"
+                        />
+                      </div>
+
+                      {/* Scope Toggle: Selected Object vs Whole Frame */}
+                      <label className="flex items-center gap-3 p-3 rounded-2xl bg-neutral-950 border-2 border-neutral-800 cursor-pointer hover:border-neutral-700 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={autoFramesOnlySelected}
+                          onChange={(e) => setAutoFramesOnlySelected?.(e.target.checked)}
+                          className="w-5 h-5 rounded-lg accent-amber-500 cursor-pointer"
+                        />
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs sm:text-sm font-black text-neutral-100">
+                            Apply Only To Selected Drawing
+                          </span>
+                          <span className="text-xs text-neutral-400 font-bold truncate">
+                            {targetObject ? (targetObject.name || 'Selected Drawing') : 'No drawing selected (affects whole frame)'}
+                          </span>
+                        </div>
+                      </label>
+
+                      {/* Start Button */}
+                      <button
+                        type="button"
+                        onClick={onStartAutoFrames}
+                        className="w-full py-3 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-xs sm:text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 shadow-amber-500/25 border-2 border-amber-300"
+                      >
+                        <Play className="w-4 h-4 fill-current stroke-[2.2]" />
+                        Start Auto Frames
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 

@@ -415,14 +415,14 @@ function LeftPanel({
             setSelectedObjectId(isSelected ? null : obj.id);
           }}
           style={{ paddingLeft: `${depth * 14 + 8}px` }}
-          className={`flex items-center justify-between py-1.5 px-2 rounded-xl group/item transition-colors select-none cursor-pointer ${
+          className={`flex items-center justify-between py-2 px-2.5 rounded-2xl group/item transition-colors select-none cursor-pointer border-2 ${
             isSelected 
-              ? 'bg-amber-500/20 border border-amber-400 text-amber-300 shadow-sm' 
-              : 'border border-neutral-800/40 bg-neutral-900/40 hover:bg-neutral-800/80 text-white'
+              ? 'bg-amber-500/25 border-amber-400 text-amber-300 shadow-md font-black' 
+              : 'border-neutral-800/80 bg-neutral-900/60 hover:bg-neutral-800 text-white font-bold'
           }`}
         >
           {/* Main Drawing Row: Clicking strictly selects or unselects */}
-          <div className="flex items-center gap-1.5 min-w-0 flex-1 pointer-events-none">
+          <div className="flex items-center gap-2 min-w-0 flex-1 pointer-events-none">
             {/* Collapse / Expand Arrow */}
             <button
               type="button"
@@ -431,24 +431,24 @@ function LeftPanel({
                 e.stopPropagation();
                 toggleExpand(obj.id, e);
               }}
-              className="p-0.5 rounded hover:bg-neutral-700 text-neutral-400 shrink-0 pointer-events-auto"
+              className="p-1 rounded-lg hover:bg-neutral-700 text-neutral-400 shrink-0 pointer-events-auto cursor-pointer"
               title={isExpanded ? "Collapse full drawing details" : "Expand full drawing details"}
             >
-              {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-amber-400" /> : <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />}
+              {isExpanded ? <ChevronDown className="w-4.5 h-4.5 stroke-[2.4] text-amber-400" /> : <ChevronRight className="w-4.5 h-4.5 stroke-[2.4] text-neutral-400" />}
             </button>
 
             {/* Type Icon */}
             {obj.type === 'image' ? (
-              <ImageIcon className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+              <ImageIcon className="w-4.5 h-4.5 stroke-[2.3] text-neutral-400 shrink-0" />
             ) : obj.type === 'text' ? (
-              <TextIcon className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+              <TextIcon className="w-4.5 h-4.5 stroke-[2.3] text-neutral-400 shrink-0" />
             ) : (
-              <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <Sparkles className="w-4.5 h-4.5 stroke-[2.3] text-amber-400 shrink-0" />
             )}
 
             {/* 2-Letter Badge to guarantee clear visibility when space is compact */}
             <span 
-              className="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 text-amber-300 font-mono text-[10px] font-black shrink-0 tracking-wider shadow-sm select-none"
+              className="px-2 py-0.5 rounded-lg bg-neutral-800 border-2 border-neutral-700 text-amber-300 font-mono text-xs font-black shrink-0 tracking-wider shadow-sm select-none"
               title={`Drawing: ${obj.name}`}
             >
               {twoLetters}
@@ -500,9 +500,9 @@ function LeftPanel({
             )}
           </div>
 
-          {/* Quick Item Actions - separated with generous gap to very right side */}
-          <div className="flex items-center gap-1 ml-auto pl-4 shrink-0">
-            {/* Very small pencil icon to edit drawing name strictly with wide safety spacing */}
+          {/* Quick Item Actions - fit snugly within original w-64 width */}
+          <div className="flex items-center gap-0.5 ml-auto pl-1 shrink-0">
+            {/* Edit drawing name button */}
             <button
               type="button"
               onPointerDown={(e) => { e.stopPropagation(); }}
@@ -514,26 +514,26 @@ function LeftPanel({
                 e.stopPropagation();
                 startRename(obj, e);
               }}
-              className="p-1 rounded hover:bg-neutral-700 text-neutral-400 hover:text-amber-400 transition-colors pointer-events-auto"
+              className="p-1.5 rounded-lg hover:bg-neutral-700 text-neutral-300 hover:text-amber-400 transition-colors pointer-events-auto cursor-pointer"
               title="Rename drawing"
             >
-              <Edit2 className="w-3.5 h-3.5" />
+              <Edit2 className="w-4 h-4 stroke-[2.2]" />
             </button>
             <button
               type="button"
               onClick={(e) => toggleVisibility(obj, e)}
-              className="p-1 rounded hover:bg-neutral-700 text-neutral-400 hover:text-white transition-colors pointer-events-auto"
+              className="p-1.5 rounded-lg hover:bg-neutral-700 text-neutral-300 hover:text-white transition-colors pointer-events-auto cursor-pointer"
               title="Show/Hide drawing"
             >
-              {obj.isHidden ? <EyeOff className="w-3.5 h-3.5 text-rose-400" /> : <Eye className="w-3.5 h-3.5 text-neutral-400" />}
+              {obj.isHidden ? <EyeOff className="w-4 h-4 stroke-[2.2] text-rose-400" /> : <Eye className="w-4 h-4 stroke-[2.2] text-neutral-300" />}
             </button>
             <button
               type="button"
               onClick={(e) => toggleLock(obj, e)}
-              className="p-1 rounded hover:bg-neutral-700 text-neutral-400 hover:text-white transition-colors pointer-events-auto"
+              className="p-1.5 rounded-lg hover:bg-neutral-700 text-neutral-300 hover:text-white transition-colors pointer-events-auto cursor-pointer"
               title={obj.isLocked ? "Unlock drawing" : "Lock drawing on layer"}
             >
-              {obj.isLocked ? <Lock className="w-3.5 h-3.5 text-rose-400" /> : <Unlock className="w-3.5 h-3.5 text-neutral-400" />}
+              {obj.isLocked ? <Lock className="w-4 h-4 stroke-[2.2] text-rose-400" /> : <Unlock className="w-4 h-4 stroke-[2.2] text-neutral-300" />}
             </button>
             <button
               type="button"
@@ -541,10 +541,10 @@ function LeftPanel({
                 e.stopPropagation();
                 duplicateObject(obj.id);
               }}
-              className="p-1 rounded hover:bg-neutral-700 text-neutral-400 hover:text-amber-400 transition-colors pointer-events-auto"
+              className="p-1.5 rounded-lg hover:bg-neutral-700 text-neutral-300 hover:text-amber-400 transition-colors pointer-events-auto cursor-pointer"
               title="Duplicate drawing"
             >
-              <Copy className="w-3.5 h-3.5" />
+              <Copy className="w-4 h-4 stroke-[2.2]" />
             </button>
             <button
               type="button"
@@ -552,28 +552,28 @@ function LeftPanel({
                 e.stopPropagation();
                 deleteObject(obj.id);
               }}
-              className="p-1 rounded hover:bg-neutral-700 text-neutral-400 hover:text-rose-400 transition-colors pointer-events-auto"
+              className="p-1.5 rounded-lg hover:bg-neutral-700 text-neutral-300 hover:text-rose-400 transition-colors pointer-events-auto cursor-pointer"
               title="Delete drawing"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-4 h-4 stroke-[2.2]" />
             </button>
           </div>
         </div>
 
         {/* Expanded View: reveals full unabbreviated drawing name in full view */}
         {isExpanded && (
-          <div className="mt-1 mb-1.5 ml-6 mr-1 p-2.5 rounded-xl bg-neutral-950 border border-neutral-800/90 text-xs space-y-1 shadow-inner">
-            <div className="flex items-center justify-between text-neutral-400 text-[9.5px] uppercase font-black tracking-wider">
+          <div className="mt-1.5 mb-2 ml-6 mr-1 p-3 rounded-2xl bg-neutral-950 border-2 border-neutral-800 text-xs space-y-1.5 shadow-inner">
+            <div className="flex items-center justify-between text-neutral-400 text-xs uppercase font-black tracking-wider">
               <span>Full Name</span>
-              <span className="text-amber-400 font-mono font-bold">[{twoLetters}]</span>
+              <span className="text-amber-400 font-mono font-black text-xs">[{twoLetters}]</span>
             </div>
-            <div className="text-white font-black text-[13px] break-words">
+            <div className="text-white font-black text-sm break-words">
               {obj.name}
             </div>
-            <div className="text-[10px] text-neutral-400 flex items-center gap-2 pt-1 border-t border-neutral-900 mt-1">
-              <span>Type: <b className="text-neutral-300 capitalize">{obj.type}</b></span>
+            <div className="text-xs text-neutral-400 flex items-center gap-2 pt-1 border-t border-neutral-900 mt-1 font-bold">
+              <span>Type: <b className="text-neutral-200 capitalize font-black">{obj.type}</b></span>
               <span>•</span>
-              <span>Layer: <b className="text-neutral-300">{currentLayer?.name || 'Layer 1'}</b></span>
+              <span>Layer: <b className="text-neutral-200 font-black">{currentLayer?.name || 'Layer 1'}</b></span>
             </div>
           </div>
         )}
@@ -597,7 +597,7 @@ function LeftPanel({
   return (
     <div
       id="left-layers-panel-container"
-      className={`absolute ${toolbarCollapsed ? 'left-14' : 'left-56'} h-full transition-all duration-200 shrink-0 z-40 overflow-visible pointer-events-none ${
+      className={`absolute ${toolbarCollapsed ? 'left-14' : 'left-52'} h-full transition-all duration-200 shrink-0 z-40 overflow-visible pointer-events-none ${
         open ? 'w-64' : 'w-0'
       }`}
     >
@@ -605,48 +605,48 @@ function LeftPanel({
       <button
         id="left-panel-toggle-btn"
         onClick={() => setOpen(!open)}
-        className="pointer-events-auto absolute -right-8 sm:-right-9 top-1/2 -translate-y-1/2 w-8 sm:w-9 h-24 bg-neutral-850 hover:bg-amber-500 border-y border-r border-neutral-700 hover:border-amber-400 rounded-r-2xl flex flex-col items-center justify-center text-amber-400 hover:text-neutral-950 transition-all cursor-pointer z-50 shadow-2xl shadow-black/80 group"
+        className="pointer-events-auto absolute -right-8 sm:-right-9 top-1/2 -translate-y-1/2 w-8 sm:w-9 h-26 bg-neutral-850 hover:bg-amber-500 border-y-2 border-r-2 border-neutral-700 hover:border-amber-400 rounded-r-2xl flex flex-col items-center justify-center text-amber-400 hover:text-neutral-950 transition-all cursor-pointer z-50 shadow-2xl shadow-black/80 group"
         title={open ? "Close Layers Panel" : "Open Layers Panel"}
         aria-label="Toggle Layers Panel"
       >
         {open ? (
-          <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
+          <ChevronLeft className="w-5 h-5 stroke-[2.5] transition-transform group-hover:-translate-x-0.5" />
         ) : (
-          <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+          <ChevronRight className="w-5 h-5 stroke-[2.5] transition-transform group-hover:translate-x-0.5" />
         )}
-        <span className="text-[7.5px] font-black uppercase tracking-tighter mt-1 opacity-80 group-hover:opacity-100 [writing-mode:vertical-lr] rotate-180">
+        <span className="text-[9px] font-black uppercase tracking-wider mt-1 opacity-90 group-hover:opacity-100 [writing-mode:vertical-lr] rotate-180">
           {open ? 'CLOSE' : 'TREE'}
         </span>
       </button>
 
-      <div className={`pointer-events-auto w-full h-full bg-neutral-900/95 backdrop-blur-md border-r border-neutral-800 flex flex-col overflow-hidden ${
+      <div className={`pointer-events-auto w-full h-full bg-neutral-900/95 backdrop-blur-md border-r-2 border-neutral-800 flex flex-col overflow-hidden ${
         open ? 'w-64' : 'w-0 border-r-0'
       }`}>
         {open && (
         <>
           {/* Header */}
-          <div className="h-14 border-b border-neutral-800 flex items-center justify-between px-3 shrink-0 select-none">
-            <span className="text-xs uppercase tracking-widest font-black text-neutral-400 flex items-center gap-1.5">
-              <Folder className="w-3.5 h-3.5 text-amber-400" />
+          <div className="h-16 border-b-2 border-neutral-800 flex items-center justify-between px-4 shrink-0 select-none">
+            <span className="text-sm uppercase tracking-widest font-black text-neutral-200 flex items-center gap-2">
+              <Folder className="w-5 h-5 stroke-[2.5] text-amber-400" />
               HIERARCHY TREE
             </span>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <button
                 onClick={handleGroupSelected}
                 disabled={!selectedObjectId}
-                className={`p-1.5 rounded-lg border border-neutral-800 hover:border-neutral-700 hover:bg-neutral-800 text-neutral-400 hover:text-white transition-all ${
+                className={`p-2 rounded-xl border-2 border-neutral-800 hover:border-neutral-700 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-all cursor-pointer ${
                   !selectedObjectId ? 'opacity-40 cursor-not-allowed' : ''
                 }`}
                 title="Add Selected to Group"
               >
-                <FolderPlus className="w-4 h-4" />
+                <FolderPlus className="w-5 h-5 stroke-[2.4]" />
               </button>
               <button
                 onClick={() => setOpen(false)}
-                className="p-1.5 rounded-lg border border-neutral-800 hover:border-neutral-700 hover:bg-neutral-850 text-neutral-400 hover:text-rose-400 transition-all lg:hidden"
+                className="p-2 rounded-xl border-2 border-neutral-800 hover:border-neutral-700 hover:bg-neutral-850 text-neutral-400 hover:text-rose-400 transition-all lg:hidden cursor-pointer"
                 title="Close Sidebar"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-5 h-5 stroke-[2.4]" />
               </button>
             </div>
           </div>
@@ -658,52 +658,52 @@ function LeftPanel({
             className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-thin select-none"
           >
             {/* 🎭 Swap Studio Quick Tool */}
-            <div className="border border-indigo-500/40 bg-neutral-900 rounded-2xl p-3 space-y-2 shrink-0 shadow-lg" id="shape-studio-left-panel">
+            <div className="border-2 border-indigo-500/50 bg-neutral-900 rounded-2xl p-3.5 space-y-2.5 shrink-0 shadow-lg" id="shape-studio-left-panel">
               <div className="flex items-center justify-between text-indigo-400">
-                <div className="flex items-center gap-1.5 font-black text-[10.5px] uppercase tracking-wider">
-                  <Layers className="w-4 h-4 text-indigo-400 animate-pulse" />
+                <div className="flex items-center gap-2 font-black text-xs uppercase tracking-wider">
+                  <Layers className="w-5 h-5 text-indigo-400 stroke-[2.4] animate-pulse" />
                   Swap Studio (SWP)
                 </div>
-                <span className="text-[9px] font-mono bg-indigo-900/80 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-700/60 font-bold">
+                <span className="text-xs font-mono bg-indigo-900/80 text-indigo-300 px-2 py-0.5 rounded-lg border border-indigo-700/60 font-black">
                   SWP
                 </span>
               </div>
-              <p className="text-[9px] text-neutral-300 leading-normal">
+              <p className="text-xs text-neutral-300 leading-relaxed font-bold">
                 Add selected drawings as swapable parts. Transform &amp; move automatically with the main character while position stays locked.
               </p>
               <button
                 type="button"
                 id="btn-open-shape-studio"
                 onClick={() => setActiveTool?.('SWAP_STUDIO')}
-                className={`w-full py-2 px-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 shadow-md ${
+                className={`w-full py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 shadow-md border-2 ${
                   activeTool === 'SWAP_STUDIO' || activeTool === 'SWP' || activeTool === 'SST'
-                    ? 'bg-indigo-600 text-white shadow-indigo-600/30 ring-2 ring-indigo-400 scale-[1.02]'
-                    : 'bg-neutral-900 hover:bg-indigo-950/80 border border-indigo-500/30 text-indigo-300 hover:text-white'
+                    ? 'bg-indigo-600 text-white shadow-indigo-600/30 border-indigo-400 scale-[1.02]'
+                    : 'bg-neutral-950 hover:bg-indigo-950/80 border-indigo-500/40 text-indigo-300 hover:text-white'
                 }`}
               >
-                <Layers className="w-3.5 h-3.5" />
+                <Layers className="w-4.5 h-4.5 stroke-[2.4]" />
                 {activeTool === 'SWAP_STUDIO' || activeTool === 'SWP' || activeTool === 'SST' ? '✓ Swap Studio (SWP) Active' : '▶ Open Swap Studio (SWP)'}
               </button>
             </div>
 
             {/* 🎯 Adaptive Geometry Deformation Controller */}
-            <div className="border border-amber-500/30 bg-neutral-950/90 rounded-2xl p-3 space-y-3 shrink-0 shadow-lg" id="adaptive-subdivision-panel">
-              <div className="flex items-center gap-1.5 text-amber-400">
-                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-wider">Deformation Points Control</span>
+            <div className="border-2 border-amber-500/40 bg-neutral-950/90 rounded-2xl p-3.5 space-y-3.5 shrink-0 shadow-lg" id="adaptive-subdivision-panel">
+              <div className="flex items-center gap-2 text-amber-400">
+                <Sparkles className="w-4.5 h-4.5 stroke-[2.4] animate-pulse" />
+                <span className="text-xs font-black uppercase tracking-wider">Deformation Points Control</span>
               </div>
-              <p className="text-[9px] text-neutral-400 leading-normal">
+              <p className="text-xs text-neutral-300 leading-relaxed font-bold">
                 Control dynamic point generation when stretching edges of 3D models & 2D drawings.
               </p>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <button
                   id="btn-start-adaptive"
                   onClick={() => setAdaptiveSubdivisionEnabled(true)}
-                  className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 cursor-pointer border-2 ${
                     adaptiveSubdivisionEnabled
-                      ? 'bg-amber-500 text-neutral-950 shadow-md shadow-amber-500/10 scale-105'
-                      : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
+                      ? 'bg-amber-500 text-neutral-950 border-amber-300 shadow-md scale-105'
+                      : 'bg-neutral-900 border-neutral-800 text-neutral-300 hover:text-white'
                   }`}
                 >
                   ▶ START
@@ -711,23 +711,23 @@ function LeftPanel({
                 <button
                   id="btn-stop-adaptive"
                   onClick={() => setAdaptiveSubdivisionEnabled(false)}
-                  className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 cursor-pointer border-2 ${
                     !adaptiveSubdivisionEnabled
-                      ? 'bg-rose-600 text-white shadow-md shadow-rose-600/10 scale-105'
-                      : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-rose-400'
+                      ? 'bg-rose-600 text-white border-rose-400 shadow-md scale-105'
+                      : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-rose-400'
                   }`}
                 >
                   ■ STOP
                 </button>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[9px] text-neutral-500 font-extrabold uppercase tracking-widest">Points Per Split</span>
-                  <span className="text-[10px] text-amber-400 font-mono font-black bg-neutral-900 px-1.5 py-0.5 rounded border border-neutral-800">{adaptiveSubdivisionPoints}</span>
+                  <span className="text-xs text-neutral-400 font-black uppercase tracking-wider">Points Per Split</span>
+                  <span className="text-xs text-amber-400 font-mono font-black bg-neutral-900 px-2 py-0.5 rounded-lg border border-neutral-800">{adaptiveSubdivisionPoints}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[9px] font-bold text-neutral-500 font-mono">1</span>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xs font-bold text-neutral-400 font-mono">1</span>
                   <input
                     id="slider-adaptive-points"
                     type="range"
@@ -2484,21 +2484,21 @@ function LeftPanel({
             </div>
 
             {/* Layer Panel Section */}
-            <div className="border-t border-neutral-800/60 pt-4 mt-4 space-y-3">
+            <div className="border-t-2 border-neutral-800/80 pt-4 mt-4 space-y-3.5">
               <div className="flex items-center justify-between">
-                <div className="text-[10px] text-neutral-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
-                  <LayerIcon className="w-3.5 h-3.5 text-amber-500" />
+                <div className="text-xs text-neutral-200 font-black uppercase tracking-wider flex items-center gap-2">
+                  <LayerIcon className="w-4.5 h-4.5 text-amber-500 stroke-[2.4]" />
                   3D Depth Layers System
                 </div>
                 <button
                   onClick={handleAddLayer}
-                  className="px-2 py-0.5 text-[10px] bg-neutral-800 border border-neutral-700 hover:bg-amber-500 hover:text-neutral-950 font-black rounded-lg transition-all"
+                  className="px-3 py-1.5 text-xs bg-neutral-800 border-2 border-neutral-700 hover:bg-amber-500 hover:text-neutral-950 font-black rounded-xl transition-all cursor-pointer shadow-md"
                 >
                   + ADD LAYER
                 </button>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {sortedLayersList.map((layer, index) => {
                   const isActive = activeLayerId === layer.id;
                   const blur = (layer as any).blurAmount ?? 0;
@@ -2514,19 +2514,19 @@ function LeftPanel({
                         e.stopPropagation();
                         setActiveLayerId(layer.id);
                       }}
-                      className={`flex flex-col p-3 rounded-xl border text-xs transition-all cursor-pointer relative overflow-hidden ${
+                      className={`flex flex-col p-3.5 rounded-2xl border-2 text-xs transition-all cursor-pointer relative overflow-hidden ${
                         isActive
-                          ? 'bg-amber-500/10 border-amber-400 text-amber-200 font-bold shadow-[0_0_15px_rgba(245,158,11,0.2)] ring-1 ring-amber-400/50'
-                          : 'bg-neutral-950/90 border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:bg-neutral-900'
+                          ? 'bg-amber-500/15 border-amber-400 text-amber-200 font-bold shadow-[0_0_18px_rgba(245,158,11,0.25)] ring-1 ring-amber-400/50'
+                          : 'bg-neutral-950/90 border-neutral-800 hover:border-neutral-700 text-neutral-300 hover:bg-neutral-900'
                       }`}
                     >
                       {isActive && (
-                        <div className="mb-2 flex items-center justify-between border-b border-amber-500/30 pb-1.5">
-                          <span className="px-2 py-0.5 text-[9px] bg-amber-500 text-neutral-950 font-black rounded uppercase tracking-wider flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-neutral-950 animate-pulse" />
+                        <div className="mb-2.5 flex items-center justify-between border-b-2 border-amber-500/30 pb-2">
+                          <span className="px-2.5 py-1 text-[10px] bg-amber-500 text-neutral-950 font-black rounded-lg uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
+                            <span className="w-2 h-2 rounded-full bg-neutral-950 animate-pulse" />
                             ACTIVE LAYER
                           </span>
-                          <span className="text-[10px] text-amber-400/90 font-mono font-black">
+                          <span className="text-xs text-amber-400 font-mono font-black">
                             {itemCount} {itemCount === 1 ? 'drawing' : 'drawings'}
                           </span>
                         </div>
@@ -2547,13 +2547,13 @@ function LeftPanel({
                               setEditingLayerId(null);
                             }}
                             onClick={(e) => e.stopPropagation()}
-                            className="flex items-center gap-1 flex-1 mr-1"
+                            className="flex items-center gap-1.5 flex-1 mr-1"
                           >
                             <input
                               type="text"
                               value={editingLayerName}
                               onChange={(e) => setEditingLayerName(e.target.value)}
-                              className="bg-neutral-900 border border-neutral-700 text-xs text-white rounded-lg px-2 py-0.5 focus:outline-none focus:border-amber-500 font-bold w-full"
+                              className="bg-neutral-900 border-2 border-amber-400 text-xs text-white rounded-xl px-2.5 py-1 focus:outline-none font-black w-full shadow-inner"
                               autoFocus
                               onClick={(e) => e.stopPropagation()}
                               onKeyDown={(e) => {
@@ -2574,23 +2574,23 @@ function LeftPanel({
                             />
                             <button
                               type="submit"
-                              className="text-emerald-400 hover:text-emerald-300 p-1 shrink-0"
+                              className="text-emerald-400 hover:text-emerald-300 p-1.5 shrink-0 cursor-pointer"
                               title="Save Layer Name"
                             >
-                              <Check className="w-3.5 h-3.5" />
+                              <Check className="w-4.5 h-4.5 stroke-[2.4]" />
                             </button>
                           </form>
                         ) : (
                           <div 
-                            className="flex items-center gap-1.5 truncate max-w-[140px] flex-1 cursor-pointer"
+                            className="flex items-center gap-2 truncate max-w-[170px] flex-1 cursor-pointer"
                             onClick={(e) => {
                               e.stopPropagation();
                               setActiveLayerId(layer.id);
                             }}
                           >
-                            <span className="truncate font-black text-white select-none">{layer.name}</span>
+                            <span className="truncate font-black text-sm text-white select-none">{layer.name}</span>
                             {!isActive && (
-                              <span className="text-[9px] text-neutral-500 font-mono font-normal shrink-0">
+                              <span className="text-xs text-neutral-400 font-mono font-bold shrink-0">
                                 ({itemCount})
                               </span>
                             )}
@@ -2603,10 +2603,10 @@ function LeftPanel({
                               e.stopPropagation();
                               updateLayerProp(layer.id, { visible: !layer.visible });
                             }}
-                            className="p-1 rounded hover:bg-neutral-850 text-neutral-400 hover:text-white"
+                            className="p-1.5 rounded-xl hover:bg-neutral-850 text-neutral-300 hover:text-white cursor-pointer"
                             title={layer.visible ? "Hide Layer Drawings" : "Show Layer Drawings"}
                           >
-                            {layer.visible ? <Eye className="w-3.5 h-3.5 text-neutral-300" /> : <EyeOff className="w-3.5 h-3.5 text-rose-500" />}
+                            {layer.visible ? <Eye className="w-4.5 h-4.5 stroke-[2.2] text-neutral-200" /> : <EyeOff className="w-4.5 h-4.5 stroke-[2.2] text-rose-500" />}
                           </button>
 
                           {/* Lock Toggle */}
@@ -2615,23 +2615,23 @@ function LeftPanel({
                               e.stopPropagation();
                               updateLayerProp(layer.id, { locked: !layer.locked });
                             }}
-                            className="p-1 rounded hover:bg-neutral-850 text-neutral-400 hover:text-white"
+                            className="p-1.5 rounded-xl hover:bg-neutral-850 text-neutral-300 hover:text-white cursor-pointer"
                             title="Lock Layer"
                           >
-                            {layer.locked ? <Lock className="w-3.5 h-3.5 text-amber-500" /> : <Unlock className="w-3.5 h-3.5 text-neutral-600" />}
+                            {layer.locked ? <Lock className="w-4.5 h-4.5 stroke-[2.2] text-amber-500" /> : <Unlock className="w-4.5 h-4.5 stroke-[2.2] text-neutral-500" />}
                           </button>
 
                           {/* Move Up/Down */}
                           <button
                             onClick={(e) => moveLayer(layers.findIndex(l => l.id === layer.id), 'up', e)}
-                            className="p-0.5 rounded hover:bg-neutral-800 text-[10px] text-neutral-500 hover:text-white"
+                            className="p-1 px-1.5 rounded-lg hover:bg-neutral-800 text-xs font-black text-neutral-300 hover:text-white cursor-pointer"
                             title="Move Up"
                           >
                             ▲
                           </button>
                           <button
                             onClick={(e) => moveLayer(layers.findIndex(l => l.id === layer.id), 'down', e)}
-                            className="p-0.5 rounded hover:bg-neutral-800 text-[10px] text-neutral-500 hover:text-white"
+                            className="p-1 px-1.5 rounded-lg hover:bg-neutral-800 text-xs font-black text-neutral-300 hover:text-white cursor-pointer"
                             title="Move Down"
                           >
                             ▼
@@ -2640,13 +2640,13 @@ function LeftPanel({
                           {/* Delete Layer */}
                           <button
                             onClick={(e) => handleDeleteLayer(layer.id, e)}
-                            className="p-1 rounded hover:bg-neutral-800 text-neutral-500 hover:text-rose-400"
+                            className="p-1.5 rounded-xl hover:bg-neutral-800 text-neutral-400 hover:text-rose-400 cursor-pointer"
                             title="Delete Layer"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4.5 h-4.5 stroke-[2.2]" />
                           </button>
 
-                          {/* Edit / Rename Layer Icon (Pen Icon) positioned at the very end */}
+                          {/* Edit / Rename Layer Icon */}
                           {editingLayerId !== layer.id && (
                             <button
                               type="button"
@@ -2655,10 +2655,10 @@ function LeftPanel({
                                 setEditingLayerId(layer.id);
                                 setEditingLayerName(layer.name);
                               }}
-                              className="p-1 text-neutral-400 hover:text-amber-400 transition-colors rounded hover:bg-neutral-800 shrink-0"
+                              className="p-1.5 text-neutral-300 hover:text-amber-400 transition-colors rounded-xl hover:bg-neutral-800 shrink-0 cursor-pointer"
                               title="Edit Layer Name"
                             >
-                              <Edit2 className="w-3.5 h-3.5 text-neutral-400 hover:text-amber-400" />
+                              <Edit2 className="w-4.5 h-4.5 stroke-[2.2]" />
                             </button>
                           )}
                         </div>

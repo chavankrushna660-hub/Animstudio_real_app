@@ -95,23 +95,23 @@ export default function Toolbar({
 
   return (
     <div
-      className={`bg-neutral-900 border-r border-neutral-800 flex flex-col h-full transition-all duration-200 ${
-        collapsed ? 'w-14' : 'w-56'
+      className={`bg-neutral-900 border-r-2 border-neutral-800 flex flex-col h-full transition-all duration-200 ${
+        collapsed ? 'w-14' : 'w-52'
       }`}
     >
       {/* Brand Header */}
-      <div className="h-14 border-b border-neutral-800 flex items-center justify-between px-3 shrink-0">
+      <div className="h-14 border-b-2 border-neutral-800 flex items-center justify-between px-2.5 shrink-0">
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="p-1.5 rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors ml-auto"
+          className="p-1.5 rounded-xl hover:bg-neutral-800 text-neutral-300 hover:text-white transition-colors ml-auto cursor-pointer border-2 border-neutral-800"
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {collapsed ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
+          {collapsed ? <Maximize2 className="w-5 h-5 stroke-[2.5]" /> : <Minimize2 className="w-5 h-5 stroke-[2.5]" />}
         </button>
       </div>
 
       {/* Tools List */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin select-none">
+      <div className="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-thin select-none">
         {tools.map((t) => {
           const isActive = activeTool === t.id;
           const Icon = t.icon;
@@ -119,22 +119,22 @@ export default function Toolbar({
             <button
               key={t.id}
               onClick={() => setActiveTool(t.id)}
-              className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition-all relative group text-left ${
+              className={`w-full flex items-center gap-2.5 p-2 rounded-2xl transition-all relative group text-left cursor-pointer border-2 ${
                 isActive
-                  ? 'bg-amber-500/20 border border-amber-400/40 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.15)] font-black'
-                  : 'border border-transparent text-neutral-400 hover:text-white hover:bg-neutral-800/60 font-semibold'
+                  ? 'bg-amber-500/25 border-amber-400 text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black'
+                  : 'border-neutral-800/90 hover:border-neutral-700 text-neutral-300 hover:text-white hover:bg-neutral-800 font-bold'
               }`}
               title={t.label}
             >
-              <div className={`shrink-0 ${isActive ? 'scale-110' : ''} transition-transform`}>
-                <Icon className={`w-4 h-4 ${isActive ? 'text-amber-400' : 'text-neutral-400 group-hover:text-white'}`} />
+              <div className={`shrink-0 flex items-center justify-center ${isActive ? 'scale-110' : ''} transition-transform`}>
+                <Icon className={`w-5 h-5 stroke-[2.4] ${isActive ? 'text-amber-400 stroke-[2.6]' : 'text-neutral-300 group-hover:text-white'}`} />
               </div>
               {!collapsed && (
                 <div className="overflow-hidden truncate">
-                  <span className="text-xs uppercase tracking-wider block font-bold leading-tight">
+                  <span className="text-xs uppercase tracking-wider block font-black leading-tight">
                     {(t as any).shortId || t.id}
                   </span>
-                  <span className="text-[10px] text-neutral-500 font-semibold block leading-none truncate group-hover:text-neutral-400 transition-colors">
+                  <span className="text-[11px] text-neutral-300 font-bold block leading-snug truncate group-hover:text-white transition-colors">
                     {t.name || t.label.split('(')[0].trim()}
                   </span>
                 </div>
@@ -142,9 +142,9 @@ export default function Toolbar({
 
               {/* Collapsed Tooltip Overlay */}
               {collapsed && (
-                <div className="absolute left-16 bg-neutral-950 border border-neutral-800 text-white text-[11px] font-bold px-3 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-xl shadow-black/50">
-                  <div className="text-amber-400 font-black">{t.label}</div>
-                  <div className="text-neutral-400 text-[10px] font-medium mt-0.5">{t.desc}</div>
+                <div className="absolute left-16 bg-neutral-950 border-2 border-neutral-700 text-white text-xs font-bold px-3 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-2xl shadow-black/80">
+                  <div className="text-amber-400 font-black text-xs">{t.label}</div>
+                  <div className="text-neutral-300 text-[11px] font-medium mt-0.5">{t.desc}</div>
                 </div>
               )}
             </button>

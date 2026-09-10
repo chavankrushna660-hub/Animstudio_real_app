@@ -41,7 +41,6 @@ import CanvasArea from './components/CanvasArea';
 import Timeline from './components/Timeline';
 import CustomDialog, { CustomDialogConfig } from './components/CustomDialog';
 import SavedAnimationsModal from './components/SavedAnimationsModal';
-import AutoFramesModal from './components/AutoFramesModal';
 import { VectorObject, Bone, Layer, Frame, Point, RealismSettings, View360, BrushSettings, Transform, LiquifyBrushSettings, PointShapeState, PointShapeNode, SculptBrushState, LineEditState, LineEditNode, EraserSettings, KnifeSettings, PivotSettings, MLSettings } from './types';
 import { localToWorld, worldToLocal, rotatePoint, calculateBoundingBox, unifyStrokesToSinglePath, isPointInPolygon, findClosestView360 } from './utils/math';
 import { 
@@ -3878,22 +3877,22 @@ export default function App() {
           <button
             onClick={handleUndo}
             disabled={undoStack.length === 0}
-            className={`px-2 py-1.5 rounded-xl bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-neutral-200 transition-all shrink-0 font-bold ${
+            className={`p-2 rounded-xl bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-neutral-200 transition-all shrink-0 font-black cursor-pointer ${
               undoStack.length === 0 ? 'opacity-30 cursor-not-allowed' : ''
             }`}
             title="Undo Last Action (Ctrl+Z)"
           >
-            <Undo2 className="w-4 h-4" />
+            <Undo2 className="w-4.5 h-4.5 stroke-[2.3]" />
           </button>
           <button
             onClick={handleRedo}
             disabled={redoStack.length === 0}
-            className={`px-2 py-1.5 rounded-xl bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-neutral-200 transition-all shrink-0 font-bold ${
+            className={`p-2 rounded-xl bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-neutral-200 transition-all shrink-0 font-black cursor-pointer ${
               redoStack.length === 0 ? 'opacity-30 cursor-not-allowed' : ''
             }`}
             title="Redo Action (Ctrl+Y)"
           >
-            <Redo2 className="w-4 h-4" />
+            <Redo2 className="w-4.5 h-4.5 stroke-[2.3]" />
           </button>
 
           <div className="w-[1px] h-6 bg-neutral-800 mx-1 shrink-0"></div>
@@ -3903,32 +3902,32 @@ export default function App() {
             type="button"
             id="topbar-make-single-btn"
             onClick={handleTopBarMakeSingle}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-black text-xs transition-all cursor-pointer shrink-0 shadow-lg ${
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl font-black text-xs transition-all cursor-pointer shrink-0 shadow-lg ${
               (activeTool === 'lasso' || lassoPoints.length > 0)
                 ? 'bg-gradient-to-r from-emerald-400 via-teal-400 to-amber-400 text-neutral-950 ring-2 ring-emerald-400/50 shadow-emerald-500/20 animate-pulse'
-                : 'bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30'
+                : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
             }`}
             title="Convert lasso area or selected strokes into a single continuous drawing object (3D ready)"
           >
-            <Combine className="w-3.5 h-3.5 shrink-0" />
-            <span className="inline uppercase font-extrabold tracking-wide">MAKE SINGLE DRAWING</span>
+            <Combine className="w-4.5 h-4.5 stroke-[2.3] shrink-0" />
+            <span className="inline uppercase font-black tracking-wide">MAKE SINGLE DRAWING</span>
           </button>
 
           <button
             onClick={addSampleCharacter}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-neutral-950 font-black text-xs hover:shadow-lg hover:shadow-amber-500/10 transition-all cursor-pointer shrink-0"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-neutral-950 font-black text-xs hover:shadow-lg hover:shadow-amber-500/10 transition-all cursor-pointer shrink-0"
             title="Rig Sample Character"
           >
-            <Sparkles className="w-3.5 h-3.5 fill-current shrink-0" />
+            <Sparkles className="w-4.5 h-4.5 stroke-[2.3] fill-current shrink-0" />
             <span className="inline uppercase tracking-wide">RIG SAMPLE CHARACTER</span>
           </button>
 
           <button
             onClick={clearCanvas}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 hover:border-rose-500 text-rose-400 hover:text-white font-bold text-xs transition-all cursor-pointer shrink-0"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-600 border border-rose-500/25 hover:border-rose-500 text-rose-400 hover:text-white font-black text-xs transition-all cursor-pointer shrink-0"
             title="Clear entire canvas, drawings, bones and timelines"
           >
-            <Trash2 className="w-3.5 h-3.5 shrink-0" />
+            <Trash2 className="w-4.5 h-4.5 stroke-[2.3] shrink-0" />
             <span className="inline uppercase">CLEAR</span>
           </button>
         </div>
@@ -3936,8 +3935,8 @@ export default function App() {
         {/* Right Actions: Import, Export, Record, Database */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
           {/* Upload PNG */}
-          <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 font-bold text-xs cursor-pointer text-slate-200 hover:text-white transition-all shrink-0">
-            <Upload className="w-3.5 h-3.5 shrink-0" />
+          <label className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 font-black text-xs cursor-pointer text-slate-200 hover:text-white transition-all shrink-0">
+            <Upload className="w-4.5 h-4.5 stroke-[2.3] shrink-0" />
             <span className="inline uppercase">UPLOAD</span>
             <input
               type="file"
@@ -3950,8 +3949,8 @@ export default function App() {
           <div className="w-[1px] h-6 bg-slate-800 mx-0.5 shrink-0"></div>
 
           {/* Import / Export JSON & Animation Modal */}
-          <label className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 cursor-pointer transition-colors shrink-0" title="Import JSON">
-            <Plus className="w-4 h-4" />
+          <label className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 cursor-pointer transition-colors shrink-0" title="Import JSON">
+            <Plus className="w-4.5 h-4.5 stroke-[2.3]" />
             <input
               type="file"
               accept=".json"
@@ -3965,14 +3964,14 @@ export default function App() {
           {/* Light/Dark Theme Toggle */}
           <button
             onClick={toggleTheme}
-            className={`p-1.5 rounded-lg border transition-all shrink-0 cursor-pointer ${
+            className={`p-2 rounded-xl border transition-all shrink-0 cursor-pointer ${
               theme === 'dark' 
                 ? 'bg-slate-800 hover:bg-slate-700 text-amber-400 border-slate-700' 
                 : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
             }`}
             title={theme === 'dark' ? "Switch to Light Studio Theme" : "Switch to Dark Studio Theme"}
           >
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {theme === 'dark' ? <Sun className="w-4.5 h-4.5 stroke-[2.3]" /> : <Moon className="w-4.5 h-4.5 stroke-[2.3]" />}
           </button>
 
           <div className="w-[1px] h-6 bg-slate-800 mx-0.5 shrink-0"></div>
@@ -3981,21 +3980,21 @@ export default function App() {
           {isRecording ? (
             <button
               onClick={stopRecording}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 text-white font-black text-xs animate-pulse hover:bg-rose-500 transition-colors cursor-pointer shrink-0 shadow"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 text-white font-black text-xs animate-pulse hover:bg-rose-500 transition-colors cursor-pointer shrink-0 shadow"
               title="Stop Recording & Save to File Manager"
             >
-              <Video className="w-3.5 h-3.5 shrink-0" />
+              <Video className="w-4.5 h-4.5 stroke-[2.3] shrink-0" />
               <span className="inline uppercase tracking-wider">STOP & EXPORT</span>
             </button>
           ) : (
             <div className="flex items-center gap-1.5">
               <button
                 onClick={startRecording}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 text-amber-400 hover:bg-slate-700 border border-slate-700 font-bold text-xs transition-colors cursor-pointer shrink-0"
+                className="flex items-center gap-1 px-3 py-2 rounded-xl bg-slate-800 text-amber-400 hover:bg-slate-700 border border-slate-700 font-black text-xs transition-colors cursor-pointer shrink-0"
                 title="Record Animation Canvas"
               >
-                <Video className="w-3.5 h-3.5 shrink-0" />
-                <span className="inline font-bold">REC GIF</span>
+                <Video className="w-4.5 h-4.5 stroke-[2.3] shrink-0" />
+                <span className="inline font-black">REC GIF</span>
               </button>
 
               <button
@@ -4005,11 +4004,11 @@ export default function App() {
                     startRecording();
                   }, 60);
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition-all cursor-pointer shrink-0 shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition-all cursor-pointer shrink-0 shadow-sm"
                 title="Export Entire Animation directly to Device File Manager / Gallery"
               >
-                <Download className="w-3.5 h-3.5 shrink-0" />
-                <span className="inline uppercase tracking-wider">GIF EXPORT</span>
+                <Download className="w-4.5 h-4.5 stroke-[2.3] shrink-0" />
+                <span className="inline uppercase tracking-wider font-black">GIF EXPORT</span>
               </button>
             </div>
           )}
@@ -4019,12 +4018,12 @@ export default function App() {
           {/* Database Storage Quota Trigger */}
           <button
             onClick={() => setIsSavedAnimationsModalOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-bold text-[9px] sm:text-xs transition-all cursor-pointer select-none shrink-0"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-black text-xs transition-all cursor-pointer select-none shrink-0"
             title="Open Saved Animations Database (Max 10 Quota)"
           >
-            <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span className="hidden md:inline uppercase tracking-wider text-[10px] font-black">Saved Database</span>
-            <span className="bg-amber-500/20 px-1.5 py-0.5 rounded text-[9px] font-mono font-black text-amber-300">
+            <Clock className="w-4.5 h-4.5 stroke-[2.3] text-amber-400 shrink-0" />
+            <span className="hidden md:inline uppercase tracking-wider text-[11px] font-black">Saved Database</span>
+            <span className="bg-amber-500/20 px-2 py-0.5 rounded text-[10px] font-mono font-black text-amber-300">
               {getSavedAnimationsQuotaStatus(currentUser || 'guest').count}/10
             </span>
           </button>
@@ -4036,19 +4035,19 @@ export default function App() {
             {currentUser ? (
               <button
                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 font-bold text-[9px] sm:text-xs transition-colors cursor-pointer select-none shrink-0"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 font-black text-xs transition-colors cursor-pointer select-none shrink-0"
                 title={`Logged in as ${currentUser}. Click to open database manager.`}
               >
-                <UserCheck className="w-3 h-3 text-emerald-400 shrink-0" />
-                <span className="max-w-[60px] truncate inline">{currentUser.split('@')[0]}</span>
+                <UserCheck className="w-4.5 h-4.5 stroke-[2.3] text-emerald-400 shrink-0" />
+                <span className="max-w-[80px] truncate inline">{currentUser.split('@')[0]}</span>
               </button>
             ) : (
               <button
                 onClick={() => setIsAuthModalOpen(true)}
-                className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-750 border border-neutral-700 text-neutral-300 hover:text-white font-bold text-[9px] sm:text-xs transition-colors cursor-pointer select-none shrink-0"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-750 border border-neutral-700 text-neutral-300 hover:text-white font-black text-xs transition-colors cursor-pointer select-none shrink-0"
                 title="Guest Mode. Click here to login to save animations."
               >
-                <User className="w-3 h-3 text-neutral-400 shrink-0" />
+                <User className="w-4.5 h-4.5 stroke-[2.3] text-neutral-400 shrink-0" />
                 <span className="inline">LOGIN</span>
               </button>
             )}
@@ -4440,8 +4439,21 @@ export default function App() {
           mwpState={mwpState}
           setMwpState={setMwpState}
           autoFramesActive={autoFramesOpen}
-          onOpenAutoFrames={() => setAutoFramesOpen(true)}
+          onOpenAutoFrames={() => {
+            setAutoFramesOpen(true);
+          }}
           autoFramesStatus={autoFramesStatus}
+          autoFramesDelay={autoFramesDelay}
+          setAutoFramesDelay={setAutoFramesDelay}
+          autoFramesOnlySelected={autoFramesOnlySelected}
+          setAutoFramesOnlySelected={setAutoFramesOnlySelected}
+          autoFramesCountdown={autoFramesCountdown}
+          autoFramesTimeRemaining={autoFramesTimeRemaining}
+          onStartAutoFrames={startAutoFrames}
+          onPauseAutoFrames={pauseAutoFrames}
+          onResumeAutoFrames={resumeAutoFrames}
+          onStopAutoFrames={stopAutoFrames}
+          totalFrames={frames.length}
         />
       </div>
 
@@ -4498,30 +4510,19 @@ export default function App() {
         showCanvasSizePanel={showCanvasSizePanel}
         setShowCanvasSizePanel={setShowCanvasSizePanel}
         autoFramesActive={autoFramesOpen}
-        onToggleAutoFrames={() => setAutoFramesOpen(prev => !prev)}
+        onToggleAutoFrames={() => {
+          setAutoFramesOpen(prev => !prev);
+        }}
         autoFramesStatus={autoFramesStatus}
+        autoFramesDelay={autoFramesDelay}
+        setAutoFramesDelay={setAutoFramesDelay}
+        autoFramesCountdown={autoFramesCountdown}
+        autoFramesTimeRemaining={autoFramesTimeRemaining}
+        onStartAutoFrames={startAutoFrames}
+        onPauseAutoFrames={pauseAutoFrames}
+        onResumeAutoFrames={resumeAutoFrames}
+        onStopAutoFrames={stopAutoFrames}
         style={!isMobile ? { height: timelineHeight } : undefined}
-      />
-
-      {/* Auto Frames Speed Animation Feature Modal & HUD */}
-      <AutoFramesModal
-        isOpen={autoFramesOpen}
-        onClose={() => setAutoFramesOpen(false)}
-        delaySeconds={autoFramesDelay}
-        setDelaySeconds={setAutoFramesDelay}
-        applyOnlySelected={autoFramesOnlySelected}
-        setApplyOnlySelected={setAutoFramesOnlySelected}
-        status={autoFramesStatus}
-        countdownValue={autoFramesCountdown}
-        timeRemaining={autoFramesTimeRemaining}
-        onStart={startAutoFrames}
-        onPause={pauseAutoFrames}
-        onResume={resumeAutoFrames}
-        onStop={stopAutoFrames}
-        selectedObjectId={selectedObjectId}
-        selectedObjectName={selectedObjectId && objects[selectedObjectId] ? (objects[selectedObjectId].name || objects[selectedObjectId].type || 'Selected Object') : null}
-        currentFrameIndex={currentFrameIndex}
-        totalFrames={frames.length}
       />
 
       {/* 3.5 BOTTOM SPONSOR ADS BAR (2 Boxes, Centered, 76px Height, Spacious Margins) */}
