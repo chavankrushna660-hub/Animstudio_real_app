@@ -187,7 +187,7 @@
   background-color: var(--active) !important;
   border-color: var(--active) !important;
   color: var(--active-txt) !important;
-  box-shadow: none !important;
+  box-shadow: 0 1px 2px rgba(255, 255, 255, 0.12) !important;
 }
 #anim-root button[class*="bg-amber-500/2"] svg,
 #anim-root button[class*="bg-amber-500/1"] svg,
@@ -268,8 +268,34 @@
 #anim-root [class*="ring-"] {
   --tw-ring-color: var(--brd) !important;
 }
-#anim-root [class*="shadow-"] {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25) !important;
+/* Remove shadow from all the UI, left right panels, and general elements */
+#anim-root,
+#anim-root *,
+#anim-root [class*="shadow-"],
+#anim-root aside,
+#anim-root header,
+#anim-root footer,
+#anim-root div,
+#anim-root section,
+#anim-root nav,
+#anim-root #left-layers-panel-container,
+#anim-root #right-properties-panel-container {
+  box-shadow: none !important;
+}
+
+/* Add ONLY shadow to buttons: very low little shadow, dark white shadow to all */
+#anim-root button {
+  box-shadow: 0 1px 2px rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Left and right panels open close buttons add border */
+#anim-root #left-panel-toggle-btn,
+#anim-root #right-panel-toggle-btn {
+  border: 2px solid var(--brd) !important;
+}
+#anim-root #left-panel-toggle-btn:hover,
+#anim-root #right-panel-toggle-btn:hover {
+  border-color: var(--accent-hover) !important;
 }
 #anim-root [class*="rounded-xl"],
 #anim-root [class*="rounded-2xl"],

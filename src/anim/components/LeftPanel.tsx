@@ -605,7 +605,7 @@ function LeftPanel({
       <button
         id="left-panel-toggle-btn"
         onClick={() => setOpen(!open)}
-        className="pointer-events-auto absolute -right-8 sm:-right-9 top-1/2 -translate-y-1/2 w-8 sm:w-9 h-26 bg-neutral-850 hover:bg-amber-500 border-y-2 border-r-2 border-neutral-700 hover:border-amber-400 rounded-r-2xl flex flex-col items-center justify-center text-amber-400 hover:text-neutral-950 transition-all cursor-pointer z-50 shadow-2xl shadow-black/80 group"
+        className="pointer-events-auto absolute -right-8 sm:-right-9 top-1/2 -translate-y-1/2 w-8 sm:w-9 h-26 bg-neutral-850 hover:bg-amber-500 border-2 border-neutral-700 hover:border-amber-400 rounded-r-2xl flex flex-col items-center justify-center text-amber-400 hover:text-neutral-950 transition-all cursor-pointer z-50 group"
         title={open ? "Close Layers Panel" : "Open Layers Panel"}
         aria-label="Toggle Layers Panel"
       >
